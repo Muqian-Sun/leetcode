@@ -19,22 +19,61 @@ import org.slf4j.LoggerFactory;
  * 输入：s = "cbbd"
  * 输出："bb"
  *
- * 解题思路：
+ * ============================================================================
+ * 💡 思路讲解：如何想到用动态规划？
+ * ============================================================================
  *
+ * 【第1步】理解回文串
+ * - 回文串：正着读和反着读都一样的字符串
+ * - 例如："aba"、"abba"、"a" 都是回文串
+ * - 关键性质：如果 s[i..j] 是回文串，那么：
+ *   → 首尾字符必须相同：s[i] == s[j]
+ *   → 去掉首尾后的子串也是回文：s[i+1..j-1] 也是回文
+ * - 这个递归性质暗示可以用动态规划！
+ *
+ * 【第2步】定义状态
+ * - 思考：我们要求的是什么？→ 最长的回文子串
+ * - 定义：dp[i][j] = s[i..j]（从i到j）是否为回文串
+ * - 这是一个布尔值，true表示是回文，false表示不是
+ *
+ * 【第3步】推导状态转移方程
+ * - 对于子串 s[i..j]，如何判断是否为回文？
+ *   → 条件1：首尾字符相同 s[i] == s[j]
+ *   → 条件2：中间部分是回文 dp[i+1][j-1] == true
+ * - 特殊情况：
+ *   → 长度为1：单个字符肯定是回文 dp[i][i] = true
+ *   → 长度为2：只需首尾相同 dp[i][i+1] = (s[i] == s[i+1])
+ *   → 长度为3：如 "aba"，只需首尾相同（中间只有1个字符）
+ * - 一般情况（长度≥4）：
+ *   dp[i][j] = (s[i] == s[j]) && dp[i+1][j-1]
+ *
+ * 【第4步】确定计算顺序
+ * - 关键！dp[i][j] 依赖 dp[i+1][j-1]（左下方的格子）
+ * - 必须按长度从小到大遍历（先计算短子串，再计算长子串）
+ * - 或者斜着遍历对角线
+ *
+ * 【第5步】维护最长回文
+ * - 在计算过程中，记录最长的回文子串的起始位置和长度
+ *
+ * 💡 为什么不能直接暴力枚举？
+ * - 暴力：枚举所有子串O(n²)，每个判断是否回文O(n)，总共O(n³)
+ * - DP优化：通过保存子问题结果，避免重复计算，降到O(n²)
+ *
+ * 💡 中心扩展法的思路
+ * - 换个角度：每个回文串都有一个"中心"
+ * - 中心可以是单个字符（奇数长度回文），或两个字符之间（偶数长度回文）
+ * - 从每个中心向两边扩展，直到不是回文为止
+ * - 时间复杂度也是O(n²)，但空间只需O(1)
+ *
+ * ============================================================================
  * 方法1：动态规划
- * - 状态定义：dp[i][j] 表示 s[i..j] 是否为回文串
- * - 状态转移方程：
- *   - 如果 s[i] == s[j] 且 dp[i+1][j-1] == true，则 dp[i][j] = true
- *   - 特殊情况：长度为1或2时的处理
- * - 按长度递增遍历所有子串
- * 时间复杂度：O(n^2)
- * 空间复杂度：O(n^2)
+ * 时间复杂度：O(n²)
+ * 空间复杂度：O(n²)
  *
  * 方法2：中心扩展法
- * - 遍历每个可能的中心（单字符或双字符）
- * - 从中心向两边扩展，检查是否为回文
- * 时间复杂度：O(n^2)
+ * 时间复杂度：O(n²)
  * 空间复杂度：O(1)
+ * ============================================================================
  *
  * @author muqian
  */
@@ -50,14 +89,21 @@ public class LongestPalindromicSubstring {
      * @return 最长回文子串
      */
     public String longestPalindrome(String s) {
-        log.info("\n========== 开始查找最长回文子串（动态规划） ==========");
-        log.info("字符串：\"{}\"", s);
-        log.info("状态转移方程：dp[i][j] = (s[i] == s[j]) && dp[i+1][j-1]");
-        log.info("说明：dp[i][j]表示s[i..j]是否为回文串\n");
+        log.info("\n╔══════════════════════════════════════════════════════════════════╗");
+        log.info("║  LeetCode 5. 最长回文子串 - 动态规划详解                       ║");
+        log.info("╚══════════════════════════════════════════════════════════════════╝");
+        log.info("\n【问题】字符串：\"{}\"，求最长回文子串\n", s);
+
+        log.info("【思考过程】");
+        log.info("  💭 如何判断 s[i..j] 是回文？");
+        log.info("     → 条件1：首尾字符相同 s[i] == s[j]");
+        log.info("     → 条件2：中间部分是回文 dp[i+1][j-1] == true");
+        log.info("  💡 这个递归性质让我们想到用DP");
+        log.info("  ✓ 状态转移：dp[i][j] = (s[i] == s[j]) && dp[i+1][j-1]\n");
 
         int n = s.length();
         if (n < 2) {
-            log.info("字符串长度 < 2，直接返回");
+            log.info("【特殊情况】字符串长度 < 2，直接返回");
             log.info("\n========== 查找完成 ==========\n");
             return s;
         }
@@ -73,7 +119,11 @@ public class LongestPalindromicSubstring {
 
         stepCounter = 0;
 
-        log.info("[步骤{}] 初始化：所有单个字符都是回文", ++stepCounter);
+        log.info("【初始化】");
+        log.info("  所有单个字符都是回文：dp[i][i] = true\n");
+
+        log.info("【动态规划过程】按长度从小到大检查所有子串");
+        log.info("─".repeat(70));
 
         // 按长度递增遍历
         for (int len = 2; len <= n; len++) {
@@ -93,28 +143,46 @@ public class LongestPalindromicSubstring {
                         dp[i][j] = dp[i + 1][j - 1];
                     }
 
-                    if (dp[i][j] && len > maxLen) {
-                        maxLen = len;
-                        start = i;
-
+                    if (dp[i][j]) {
                         if (len <= 4) {
-                            log.info("│   s[{}..{}] = \"{}\" ✓ 是回文！更新最长回文",
-                                    i, j, substring);
+                            log.info("│");
+                            log.info("│  ✓ s[{}..{}] = \"{}\" 是回文！", i, j, substring);
+                            log.info("│     首尾字符：'{}' == '{}'", s.charAt(i), s.charAt(j));
+                            if (len > 3) {
+                                log.info("│     中间部分 s[{}..{}] 也是回文", i+1, j-1);
+                            }
+                        }
+
+                        if (len > maxLen) {
+                            maxLen = len;
+                            start = i;
+                            if (len <= 4) {
+                                log.info("│     🎯 更新最长回文：\"{}\" (长度 {})", substring, len);
+                            }
                         }
                     }
                 } else {
                     if (len <= 4 && i <= 3) {
-                        log.info("│   s[{}..{}] = \"{}\" ✗ 首尾不同",
-                                i, j, substring);
+                        log.info("│");
+                        log.info("│  ✗ s[{}..{}] = \"{}\" 不是回文", i, j, substring);
+                        log.info("│     首尾不同：'{}' != '{}'", s.charAt(i), s.charAt(j));
                     }
                 }
+            }
+
+            if (len <= 4) {
+                log.info("─".repeat(70));
             }
         }
 
         String result = s.substring(start, start + maxLen);
 
-        log.info("\n{}", DPUtils.printSummary(stepCounter, String.format("\"%s\" (长度: %d)", result, maxLen)));
-        log.info("\n========== 查找完成 ==========\n");
+        log.info("\n【结果】");
+        log.info("  最长回文子串：\"{}\" (长度: {})", result, maxLen);
+        log.info("  位置：从索引 {} 到 {}", start, start + maxLen - 1);
+        log.info("  （通过DP，在O(n²)时间和空间内求解）");
+        log.info("\n{}", DPUtils.printSummary(stepCounter,
+                String.format("\"%s\" (长度: %d)", result, maxLen)));
 
         return result;
     }
