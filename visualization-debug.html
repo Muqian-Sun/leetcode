@@ -334,8 +334,25 @@
             canvas = document.getElementById('canvas');
             ctx = canvas.getContext('2d');
 
-            canvas.width = canvas.parentElement.clientWidth;
-            canvas.height = canvas.parentElement.clientHeight;
+            // 修复高DPI屏幕模糊问题
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+            ctx.scale(dpr, dpr);
+
+            // 调整大小监听
+            window.addEventListener('resize', () => {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+                canvas.style.width = rect.width + 'px';
+                canvas.style.height = rect.height + 'px';
+                ctx.scale(dpr, dpr);
+                drawTree();
+            });
 
             document.getElementById('speedSlider').addEventListener('input', (e) => {
                 const speed = e.target.value;
@@ -758,86 +775,149 @@
         }
 
         function drawTree() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const rect = canvas.parentElement.getBoundingClientRect();
+            ctx.clearRect(0, 0, rect.width, rect.height);
 
             if (treeNodes.length === 0) return;
 
-            // 简单的纵向布局
-            const levelGap = 80;
-            const nodeGap = 100;
-            const startY = 50;
+            // 改进的树布局算法
+            const levelGap = 100;
+            const minNodeGap = 80;
+            const nodeRadius = 25;
+            const startY = 60;
 
-            // 按深度分组
-            const byDepth = {};
+            // 构建树结构
+            const root = treeNodes.find(n => n.depth === 0);
+            if (!root) return;
+
+            // 为每个节点添加children数组
             treeNodes.forEach(node => {
-                if (!byDepth[node.depth]) byDepth[node.depth] = [];
-                byDepth[node.depth].push(node);
+                node.children = treeNodes.filter(n => n.parent === node.id);
             });
 
-            // 计算位置
-            Object.keys(byDepth).forEach(depth => {
-                const nodes = byDepth[depth];
-                const totalWidth = nodes.length * nodeGap;
-                const startX = (canvas.width - totalWidth) / 2 + nodeGap / 2;
+            // 计算每个节点的宽度（自底向上）
+            function calculateWidth(node) {
+                if (node.children.length === 0) {
+                    node.width = 1;
+                    return 1;
+                }
+                node.width = node.children.reduce((sum, child) => sum + calculateWidth(child), 0);
+                return node.width;
+            }
+            calculateWidth(root);
 
-                nodes.forEach((node, i) => {
-                    node.x = startX + i * nodeGap;
-                    node.y = startY + parseInt(depth) * levelGap;
+            // 分配x坐标（自顶向下）
+            function assignPositions(node, leftBound) {
+                if (node.children.length === 0) {
+                    node.x = leftBound * minNodeGap + rect.width / 2 - (root.width * minNodeGap) / 2;
+                    node.y = startY + node.depth * levelGap;
+                    return;
+                }
+
+                let childLeft = leftBound;
+                node.children.forEach(child => {
+                    assignPositions(child, childLeft);
+                    childLeft += child.width;
                 });
-            });
 
-            // 绘制连接线
+                // 父节点居中于子节点
+                const firstChild = node.children[0];
+                const lastChild = node.children[node.children.length - 1];
+                node.x = (firstChild.x + lastChild.x) / 2;
+                node.y = startY + node.depth * levelGap;
+            }
+            assignPositions(root, 0);
+
+            // 绘制连接线（使用贝塞尔曲线）
             treeNodes.forEach(node => {
                 if (node.parent !== undefined) {
-                    const parent = treeNodes[node.parent];
-                    if (parent) {
+                    const parent = treeNodes.find(n => n.id === node.parent);
+                    if (parent && parent.x !== undefined && node.x !== undefined) {
+                        const startX = parent.x;
+                        const startY = parent.y + nodeRadius;
+                        const endX = node.x;
+                        const endY = node.y - nodeRadius;
+
+                        // 控制点用于贝塞尔曲线
+                        const controlY = (startY + endY) / 2;
+
                         ctx.beginPath();
-                        ctx.moveTo(parent.x, parent.y + 25);
-                        ctx.lineTo(node.x, node.y - 25);
-                        ctx.strokeStyle = '#3e3e42';
+                        ctx.moveTo(startX, startY);
+                        ctx.bezierCurveTo(
+                            startX, controlY,
+                            endX, controlY,
+                            endX, endY
+                        );
+
+                        // 根据节点类型设置连接线颜色
+                        if (node.type === 'PRUNED') {
+                            ctx.strokeStyle = '#c72e0f';
+                            ctx.setLineDash([5, 3]);
+                        } else if (node.type === 'LEAF') {
+                            ctx.strokeStyle = '#16825d';
+                            ctx.setLineDash([]);
+                        } else {
+                            ctx.strokeStyle = '#666666';
+                            ctx.setLineDash([]);
+                        }
                         ctx.lineWidth = 2;
                         ctx.stroke();
+                        ctx.setLineDash([]);
                     }
                 }
             });
 
             // 绘制节点
             treeNodes.forEach(node => {
+                if (node.x === undefined || node.y === undefined) return;
+
                 let color = '#0e639c';
                 if (node.type === 'LEAF') color = '#16825d';
                 if (node.type === 'PRUNED') color = '#c72e0f';
                 if (node.type === 'ROOT') color = '#4ec9b0';
+                if (node.type === 'INTERNAL') color = '#0e639c';
 
-                // 圆形
+                // 圆形节点
                 ctx.beginPath();
-                ctx.arc(node.x, node.y, 25, 0, 2 * Math.PI);
+                ctx.arc(node.x, node.y, nodeRadius, 0, 2 * Math.PI);
                 ctx.fillStyle = color;
                 ctx.fill();
                 ctx.strokeStyle = '#d4d4d4';
                 ctx.lineWidth = 2;
                 ctx.stroke();
 
-                // 文本
+                // 节点文本
                 ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 12px Consolas';
+                ctx.font = 'bold 13px Consolas';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 let text = node.displayText;
-                if (text.length > 8) text = text.substring(0, 8) + '...';
+                if (text.length > 8) text = text.substring(0, 7) + '..';
                 ctx.fillText(text, node.x, node.y);
 
-                // 和值
+                // 和值标签
                 if (node.sum !== undefined) {
-                    ctx.font = '10px Consolas';
+                    ctx.font = '11px Consolas';
                     ctx.fillStyle = '#cccccc';
-                    ctx.fillText(`和=${node.sum}`, node.x, node.y + 40);
+                    ctx.fillText(`Σ=${node.sum}`, node.x, node.y + nodeRadius + 15);
                 }
 
-                // 标记
+                // 选择标签
+                if (node.choice !== undefined) {
+                    ctx.font = 'bold 10px Consolas';
+                    ctx.fillStyle = '#9cdcfe';
+                    ctx.fillText(`+${node.choice}`, node.x - nodeRadius - 15, node.y);
+                }
+
+                // 状态图标
                 if (node.type === 'LEAF') {
-                    ctx.fillText('✓', node.x + 20, node.y - 20);
+                    ctx.font = '14px Arial';
+                    ctx.fillStyle = '#16825d';
+                    ctx.fillText('✓', node.x + nodeRadius + 10, node.y - nodeRadius);
                 } else if (node.type === 'PRUNED') {
-                    ctx.fillText('✂', node.x + 20, node.y - 20);
+                    ctx.font = '14px Arial';
+                    ctx.fillStyle = '#c72e0f';
+                    ctx.fillText('✂', node.x + nodeRadius + 10, node.y - nodeRadius);
                 }
             });
         }
