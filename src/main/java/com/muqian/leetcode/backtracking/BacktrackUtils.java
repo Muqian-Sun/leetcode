@@ -179,6 +179,75 @@ public class BacktrackUtils {
     }
 
     /**
+     * 打印纵向树形结构（包含详细节点信息）
+     *
+     * @param node 当前节点
+     * @param prefix 前缀字符串
+     * @param isLast 是否为最后一个子节点
+     */
+    private static void printVerticalTreeStructure(DecisionTreeNode node, String prefix, boolean isLast) {
+        if (node == null) {
+            System.out.println(prefix + (isLast ? "└── " : "├── ") + ColorUtils.nullNode());
+            return;
+        }
+
+        // 构建节点显示文本
+        StringBuilder sb = new StringBuilder();
+
+        // 获取基本显示文本
+        String displayText = node.getDisplayText();
+        String coloredText;
+        switch (node.getType()) {
+            case LEAF:
+                coloredText = ColorUtils.success(displayText);
+                break;
+            case PRUNED:
+                coloredText = ColorUtils.error(displayText);
+                break;
+            default:
+                coloredText = ColorUtils.node(displayText);
+                break;
+        }
+
+        sb.append(coloredText);
+
+        // 添加状态标记
+        String marker = node.getStatusMarker();
+        if (!marker.isEmpty()) {
+            sb.append(marker);
+        }
+
+        // 添加选择信息
+        if (node.getChoice() != null && node.getDepth() > 0) {
+            sb.append(" ");
+            sb.append(ColorUtils.info("选:" + node.getChoice()));
+        }
+
+        // 添加深度信息
+        if (node.getDepth() > 0) {
+            sb.append(" ");
+            sb.append(ColorUtils.dim("(深度" + node.getDepth() + ")"));
+        }
+
+        // 添加描述信息
+        if (node.getDescription() != null && !node.getDescription().isEmpty()
+                && !node.getDescription().equals("开始")) {
+            sb.append(" ");
+            sb.append(ColorUtils.info("[" + node.getDescription() + "]"));
+        }
+
+        // 打印当前节点
+        System.out.println(prefix + (isLast ? "└── " : "├── ") + sb.toString());
+
+        // 递归打印子节点
+        List<DecisionTreeNode> children = node.getChildren();
+        for (int i = 0; i < children.size(); i++) {
+            String newPrefix = prefix + (isLast ? "    " : "│   ");
+            printVerticalTreeStructure(children.get(i), newPrefix, i == children.size() - 1);
+        }
+    }
+
+    /**
      * 格式化节点文本（带颜色和状态标记）
      *
      * @param node 节点
@@ -309,12 +378,9 @@ public class BacktrackUtils {
         System.out.println("  " + ColorUtils.dim("(深度N)") + " = 递归深度");
         System.out.println();
 
-        // 使用tree-printer库渲染纵向树
-        DecisionTreeNodeAdapter adapter = new DecisionTreeNodeAdapter(root);
-        hu.webarticum.treeprinter.printer.traditional.TraditionalTreePrinter printer =
-                new hu.webarticum.treeprinter.printer.traditional.TraditionalTreePrinter();
+        // 使用自定义ASCII树渲染纵向树
         System.out.println(ColorUtils.phase("【决策树结构】"));
-        printer.print(adapter);
+        printVerticalTreeStructure(root, "", true);
 
         // 打印统计信息
         int[] stats = calculateTreeStats(root);

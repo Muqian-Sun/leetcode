@@ -532,12 +532,9 @@ public class TreeUtils {
         System.out.println("  " + ColorUtils.dim("(深度N)") + " = 递归调用深度");
         System.out.println();
 
-        // 使用tree-printer库渲染纵向树
-        RecursionTreeNodeAdapter adapter = new RecursionTreeNodeAdapter(root);
-        hu.webarticum.treeprinter.printer.traditional.TraditionalTreePrinter printer =
-                new hu.webarticum.treeprinter.printer.traditional.TraditionalTreePrinter();
+        // 使用自定义ASCII树渲染纵向树
         System.out.println(ColorUtils.phase("【递归调用树结构】"));
-        printer.print(adapter);
+        printVerticalRecursionTree(root, "", true);
 
         // 打印统计信息
         int[] stats = calculateRecursionTreeStats(root);
@@ -587,6 +584,67 @@ public class TreeUtils {
         // 递归处理子调用
         for (RecursionTreeNode child : node.getChildren()) {
             calculateRecursionStatsRecursive(child, stats);
+        }
+    }
+
+    /**
+     * 打印纵向递归调用树结构（包含详细节点信息）
+     *
+     * @param node 当前节点
+     * @param prefix 前缀字符串
+     * @param isLast 是否为最后一个子节点
+     */
+    private static void printVerticalRecursionTree(RecursionTreeNode node, String prefix, boolean isLast) {
+        if (node == null) {
+            System.out.println(prefix + (isLast ? "└── " : "├── ") + ColorUtils.nullNode());
+            return;
+        }
+
+        // 构建节点显示文本
+        StringBuilder sb = new StringBuilder();
+
+        // 基础情况标记
+        if (node.getType() == RecursionTreeNode.NodeType.BASE_CASE) {
+            sb.append(ColorUtils.error("[基础情况] "));
+        }
+
+        // 函数调用
+        sb.append(node.getFunctionName()).append("(");
+        if (node.getTreeNode() != null) {
+            sb.append("node=").append(ColorUtils.node(node.getTreeNode().val));
+        } else {
+            sb.append("node=").append(ColorUtils.nullNode());
+        }
+
+        // 其他参数
+        if (node.getParams() != null && node.getParams().length > 0) {
+            for (int i = 0; i < node.getParams().length; i++) {
+                sb.append(", param").append(i + 1).append("=").append(node.getParams()[i]);
+            }
+        }
+        sb.append(")");
+
+        // 返回值
+        if (node.getReturnValue() != null) {
+            sb.append(" ");
+            sb.append(ColorUtils.success("→ "));
+            sb.append(ColorUtils.highlight(String.valueOf(node.getReturnValue())));
+        }
+
+        // 描述信息
+        if (node.getDescription() != null && !node.getDescription().isEmpty()) {
+            sb.append(" ");
+            sb.append(ColorUtils.info("[" + node.getDescription() + "]"));
+        }
+
+        // 打印当前节点
+        System.out.println(prefix + (isLast ? "└── " : "├── ") + sb.toString());
+
+        // 递归打印子节点
+        List<RecursionTreeNode> children = node.getChildren();
+        for (int i = 0; i < children.size(); i++) {
+            String newPrefix = prefix + (isLast ? "    " : "│   ");
+            printVerticalRecursionTree(children.get(i), newPrefix, i == children.size() - 1);
         }
     }
 
