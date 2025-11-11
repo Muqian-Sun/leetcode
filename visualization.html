@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeetCode 算法树形可视化</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', 'Segoe UI', Tahoma, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        label {
+            font-weight: 600;
+            color: #555;
+        }
+
+        select, input, button {
+            padding: 10px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: 600px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            overflow: auto;
+            background: #fafafa;
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            display: block;
+            cursor: grab;
+        }
+
+        canvas:active {
+            cursor: grabbing;
+        }
+
+        .legend {
+            display: flex;
+            gap: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 2px solid #333;
+        }
+
+        .info-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            max-width: 300px;
+            display: none;
+        }
+
+        .info-panel.active {
+            display: block;
+        }
+
+        .info-panel h3 {
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .info-panel p {
+            margin: 5px 0;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-card .number {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #e8ebff;
+        }
+
+        #fileInput {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌲 算法树形可视化</h1>
+        <p class="subtitle">LeetCode Hot 100 - 回溯决策树 & 二叉树递归树</p>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="treeType">树类型:</label>
+                <select id="treeType">
+                    <option value="backtrack">回溯决策树</option>
+                    <option value="recursion">二叉树递归树</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="layoutType">布局:</label>
+                <select id="layoutType">
+                    <option value="vertical">纵向（根在上）</option>
+                    <option value="horizontal">横向（根在左）</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="nodeSpacing">节点间距:</label>
+                <input type="range" id="nodeSpacing" min="80" max="200" value="120" step="10">
+                <span id="spacingValue">120</span>
+            </div>
+
+            <button onclick="resetZoom()">重置视图</button>
+            <button onclick="exportImage()">导出图片</button>
+        </div>
+
+        <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+            <p>📁 点击或拖拽 JSON 文件到这里</p>
+            <p style="font-size: 12px; color: #888; margin-top: 10px;">支持回溯决策树和递归调用树数据</p>
+            <input type="file" id="fileInput" accept=".json" onchange="loadFile(event)">
+        </div>
+
+        <div class="canvas-container" id="canvasContainer">
+            <canvas id="treeCanvas"></canvas>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #4CAF50;"></div>
+                <span>有效结果 (✓)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #f44336;"></div>
+                <span>剪枝节点 (✂)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #2196F3;"></div>
+                <span>普通节点</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #FF9800;"></div>
+                <span>基础情况</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #9E9E9E;"></div>
+                <span>空节点 (null)</span>
+            </div>
+        </div>
+
+        <div class="stats" id="stats"></div>
+    </div>
+
+    <div class="info-panel" id="infoPanel">
+        <h3>节点信息</h3>
+        <div id="nodeInfo"></div>
+    </div>
+
+    <script>
+        // 全局变量
+        let canvas, ctx;
+        let treeData = null;
+        let nodePositions = [];
+        let scale = 1;
+        let offsetX = 0, offsetY = 0;
+        let isDragging = false;
+        let lastX = 0, lastY = 0;
+
+        // 初始化
+        window.onload = function() {
+            canvas = document.getElementById('treeCanvas');
+            ctx = canvas.getContext('2d');
+
+            setupCanvas();
+            setupEventListeners();
+            loadSampleData();
+        };
+
+        function setupCanvas() {
+            const container = document.getElementById('canvasContainer');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+
+        function setupEventListeners() {
+            // 节点间距滑块
+            document.getElementById('nodeSpacing').addEventListener('input', (e) => {
+                document.getElementById('spacingValue').textContent = e.target.value;
+                if (treeData) drawTree();
+            });
+
+            // 树类型和布局切换
+            document.getElementById('treeType').addEventListener('change', () => {
+                if (treeData) drawTree();
+            });
+
+            document.getElementById('layoutType').addEventListener('change', () => {
+                if (treeData) drawTree();
+            });
+
+            // 画布拖拽和缩放
+            canvas.addEventListener('mousedown', startDrag);
+            canvas.addEventListener('mousemove', drag);
+            canvas.addEventListener('mouseup', endDrag);
+            canvas.addEventListener('mouseleave', endDrag);
+            canvas.addEventListener('wheel', zoom);
+
+            // 节点点击
+            canvas.addEventListener('click', handleNodeClick);
+
+            // 文件拖放
+            const uploadArea = document.getElementById('uploadArea');
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file) loadFileData(file);
+            });
+
+            // 窗口大小改变
+            window.addEventListener('resize', () => {
+                setupCanvas();
+                if (treeData) drawTree();
+            });
+        }
+
+        function loadSampleData() {
+            // 示例数据：回溯决策树
+            treeData = {
+                type: 'backtrack',
+                displayText: '[]',
+                description: '开始',
+                depth: 0,
+                nodeType: 'INTERNAL',
+                children: [
+                    {
+                        displayText: '[2]',
+                        choice: 2,
+                        depth: 1,
+                        nodeType: 'INTERNAL',
+                        children: [
+                            {
+                                displayText: '[2, 2]',
+                                choice: 2,
+                                depth: 2,
+                                nodeType: 'INTERNAL',
+                                children: [
+                                    {
+                                        displayText: '[2, 2, 2]',
+                                        choice: 2,
+                                        depth: 3,
+                                        nodeType: 'INTERNAL',
+                                        children: [
+                                            {
+                                                displayText: '[2, 2, 2, 2]',
+                                                choice: 2,
+                                                depth: 4,
+                                                nodeType: 'LEAF',
+                                                description: '和=8'
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                displayText: '[2, 3]',
+                                choice: 3,
+                                depth: 2,
+                                nodeType: 'INTERNAL',
+                                children: [
+                                    {
+                                        displayText: '[2, 3, 3]',
+                                        choice: 3,
+                                        depth: 3,
+                                        nodeType: 'LEAF',
+                                        description: '和=8'
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        displayText: '[3]',
+                        choice: 3,
+                        depth: 1,
+                        nodeType: 'INTERNAL',
+                        children: [
+                            {
+                                displayText: '[3, 5]',
+                                choice: 5,
+                                depth: 2,
+                                nodeType: 'LEAF',
+                                description: '和=8'
+                            }
+                        ]
+                    }
+                ]
+            };
+            drawTree();
+        }
+
+        function loadFile(event) {
+            const file = event.target.files[0];
+            if (file) loadFileData(file);
+        }
+
+        function loadFileData(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    treeData = JSON.parse(e.target.result);
+                    drawTree();
+                } catch (error) {
+                    alert('JSON 文件格式错误: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function calculateTreeLayout(node, x = 0, y = 0, horizontal = 50, vertical = 80) {
+            if (!node) return { width: 0 };
+
+            const positions = [];
+
+            if (!node.children || node.children.length === 0) {
+                positions.push({ node, x, y, width: 1 });
+                return { width: 1, positions };
+            }
+
+            let currentX = x;
+            let totalWidth = 0;
+            let childPositions = [];
+
+            node.children.forEach(child => {
+                const childLayout = calculateTreeLayout(child, currentX, y + vertical, horizontal, vertical);
+                childPositions = childPositions.concat(childLayout.positions);
+                currentX += childLayout.width * horizontal;
+                totalWidth += childLayout.width;
+            });
+
+            const firstChild = childPositions[0];
+            const lastChild = childPositions[childPositions.length - 1];
+            const nodeX = (firstChild.x + lastChild.x) / 2;
+
+            positions.push({ node, x: nodeX, y, width: totalWidth });
+
+            return { width: totalWidth, positions: positions.concat(childPositions) };
+        }
+
+        function drawTree() {
+            if (!treeData) return;
+
+            const spacing = parseInt(document.getElementById('nodeSpacing').value);
+            const layout = calculateTreeLayout(treeData, canvas.width / 2, 50, spacing, 100);
+            nodePositions = layout.positions;
+
+            // 计算画布大小
+            const maxX = Math.max(...nodePositions.map(p => p.x));
+            const maxY = Math.max(...nodePositions.map(p => p.y));
+            canvas.width = Math.max(canvas.parentElement.clientWidth, maxX + 200);
+            canvas.height = Math.max(canvas.parentElement.clientHeight, maxY + 200);
+
+            // 清空画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(offsetX, offsetY);
+            ctx.scale(scale, scale);
+
+            // 绘制连接线
+            nodePositions.forEach(pos => {
+                if (pos.node.children) {
+                    pos.node.children.forEach(child => {
+                        const childPos = nodePositions.find(p => p.node === child);
+                        if (childPos) {
+                            ctx.beginPath();
+                            ctx.moveTo(pos.x, pos.y + 20);
+                            ctx.lineTo(childPos.x, childPos.y - 20);
+                            ctx.strokeStyle = '#ccc';
+                            ctx.lineWidth = 2;
+                            ctx.stroke();
+                        }
+                    });
+                }
+            });
+
+            // 绘制节点
+            nodePositions.forEach(pos => {
+                drawNode(pos.node, pos.x, pos.y);
+            });
+
+            ctx.restore();
+
+            // 更新统计信息
+            updateStats();
+        }
+
+        function drawNode(node, x, y) {
+            const radius = 30;
+            let fillColor = '#2196F3';
+
+            // 根据节点类型设置颜色
+            if (node.nodeType === 'LEAF') {
+                fillColor = '#4CAF50';
+            } else if (node.nodeType === 'PRUNED') {
+                fillColor = '#f44336';
+            } else if (node.nodeType === 'BASE_CASE') {
+                fillColor = '#FF9800';
+            }
+
+            // 绘制圆形节点
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, 2 * Math.PI);
+            ctx.fillStyle = fillColor;
+            ctx.fill();
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 绘制节点文本
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            let text = node.displayText || '';
+            if (text.length > 10) text = text.substring(0, 10) + '...';
+            ctx.fillText(text, x, y);
+
+            // 绘制标记
+            if (node.nodeType === 'LEAF') {
+                ctx.fillText('✓', x + radius - 5, y - radius + 5);
+            } else if (node.nodeType === 'PRUNED') {
+                ctx.fillText('✂', x + radius - 5, y - radius + 5);
+            }
+
+            // 绘制深度信息
+            if (node.depth > 0) {
+                ctx.fillStyle = '#666';
+                ctx.font = '10px Arial';
+                ctx.fillText(`深度${node.depth}`, x, y + radius + 15);
+            }
+        }
+
+        function handleNodeClick(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = (event.clientX - rect.left - offsetX) / scale;
+            const y = (event.clientY - rect.top - offsetY) / scale;
+
+            // 查找点击的节点
+            for (const pos of nodePositions) {
+                const dx = x - pos.x;
+                const dy = y - pos.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < 30) {
+                    showNodeInfo(pos.node);
+                    return;
+                }
+            }
+
+            hideNodeInfo();
+        }
+
+        function showNodeInfo(node) {
+            const infoPanel = document.getElementById('infoPanel');
+            const nodeInfo = document.getElementById('nodeInfo');
+
+            let html = `<p><strong>显示文本:</strong> ${node.displayText || 'N/A'}</p>`;
+            html += `<p><strong>深度:</strong> ${node.depth}</p>`;
+            if (node.choice !== undefined) {
+                html += `<p><strong>选择:</strong> ${node.choice}</p>`;
+            }
+            if (node.description) {
+                html += `<p><strong>描述:</strong> ${node.description}</p>`;
+            }
+            html += `<p><strong>类型:</strong> ${node.nodeType}</p>`;
+            if (node.returnValue !== undefined) {
+                html += `<p><strong>返回值:</strong> ${node.returnValue}</p>`;
+            }
+
+            nodeInfo.innerHTML = html;
+            infoPanel.classList.add('active');
+        }
+
+        function hideNodeInfo() {
+            document.getElementById('infoPanel').classList.remove('active');
+        }
+
+        function updateStats() {
+            if (!treeData) return;
+
+            let totalNodes = 0;
+            let leafNodes = 0;
+            let prunedNodes = 0;
+            let maxDepth = 0;
+
+            function traverse(node) {
+                if (!node) return;
+                totalNodes++;
+                maxDepth = Math.max(maxDepth, node.depth || 0);
+
+                if (node.nodeType === 'LEAF') leafNodes++;
+                if (node.nodeType === 'PRUNED') prunedNodes++;
+
+                if (node.children) {
+                    node.children.forEach(traverse);
+                }
+            }
+
+            traverse(treeData);
+
+            const statsHtml = `
+                <div class="stat-card">
+                    <div class="number">${totalNodes}</div>
+                    <div class="label">总节点数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">${leafNodes}</div>
+                    <div class="label">叶子节点</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">${prunedNodes}</div>
+                    <div class="label">剪枝节点</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">${maxDepth}</div>
+                    <div class="label">最大深度</div>
+                </div>
+            `;
+
+            document.getElementById('stats').innerHTML = statsHtml;
+        }
+
+        function startDrag(e) {
+            isDragging = true;
+            lastX = e.clientX;
+            lastY = e.clientY;
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+
+            const dx = e.clientX - lastX;
+            const dy = e.clientY - lastY;
+
+            offsetX += dx;
+            offsetY += dy;
+
+            lastX = e.clientX;
+            lastY = e.clientY;
+
+            drawTree();
+        }
+
+        function endDrag() {
+            isDragging = false;
+        }
+
+        function zoom(e) {
+            e.preventDefault();
+
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            scale *= delta;
+            scale = Math.max(0.1, Math.min(scale, 3));
+
+            drawTree();
+        }
+
+        function resetZoom() {
+            scale = 1;
+            offsetX = 0;
+            offsetY = 0;
+            drawTree();
+        }
+
+        function exportImage() {
+            const link = document.createElement('a');
+            link.download = 'tree-visualization.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+    </script>
+</body>
+</html>

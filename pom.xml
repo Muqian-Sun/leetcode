@@ -36,6 +36,13 @@
             <artifactId>logback-classic</artifactId>
             <version>1.4.14</version>
         </dependency>
+
+        <!-- Gson for JSON serialization -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
+        </dependency>
     </dependencies>
 
 </project>

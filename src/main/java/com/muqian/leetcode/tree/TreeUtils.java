@@ -974,4 +974,27 @@ public class TreeUtils {
 
         return sb.toString();
     }
+
+    /**
+     * 导出递归调用树为JSON文件（用于Web可视化）
+     *
+     * @param root 递归树根节点
+     * @param filename 输出文件名
+     */
+    public static void exportRecursionTreeToJson(RecursionTreeNode root, String filename) {
+        try {
+            com.google.gson.Gson gson = new com.google.gson.GsonBuilder()
+                    .setPrettyPrinting()
+                    .create();
+
+            java.io.FileWriter writer = new java.io.FileWriter(filename);
+            gson.toJson(root, writer);
+            writer.close();
+
+            System.out.println(ColorUtils.success("\n✓ 递归调用树已导出到: " + filename));
+            System.out.println(ColorUtils.info("  请在浏览器中打开 visualization.html 查看可视化效果"));
+        } catch (java.io.IOException e) {
+            System.err.println(ColorUtils.error("✗ 导出失败: " + e.getMessage()));
+        }
+    }
 }
