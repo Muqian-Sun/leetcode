@@ -323,6 +323,7 @@
                     <button onclick="zoomIn()">🔍+</button>
                     <button onclick="zoomOut()">🔍-</button>
                     <button onclick="fitToView()">📐 适应窗口</button>
+                    <button onclick="toggleAutoFit()" id="autoFitBtn">🔓 自动适应</button>
                     <button onclick="resetZoom()">🔄 重置</button>
                     <span id="zoomLevel">100%</span>
                 </div>
@@ -391,7 +392,10 @@
             // 鼠标滚轮缩放
             canvas.addEventListener('wheel', (e) => {
                 e.preventDefault();
-                autoFitEnabled = false; // 手动缩放后禁用自动适应
+                if (autoFitEnabled) {
+                    autoFitEnabled = false; // 手动缩放后禁用自动适应
+                    updateAutoFitButton();
+                }
                 const delta = e.deltaY > 0 ? 0.9 : 1.1;
                 scale *= delta;
                 scale = Math.max(0.1, Math.min(5, scale));
@@ -409,7 +413,10 @@
 
             canvas.addEventListener('mousemove', (e) => {
                 if (isDragging) {
-                    autoFitEnabled = false; // 手动平移后禁用自动适应
+                    if (autoFitEnabled) {
+                        autoFitEnabled = false; // 手动平移后禁用自动适应
+                        updateAutoFitButton();
+                    }
                     offsetX = e.clientX - dragStartX;
                     offsetY = e.clientY - dragStartY;
                     drawTree();
@@ -429,6 +436,7 @@
             canvas.style.cursor = 'grab';
 
             loadAlgorithm();
+            updateAutoFitButton(); // 初始化按钮状态
         };
 
         // 算法数据定义
@@ -954,6 +962,7 @@
             currentStep = 0;
 
             // 重置UI和视图
+            autoFitEnabled = true; // 切换算法时启用自动适应
             resetExecution();
             resetZoom();
         }
@@ -963,12 +972,16 @@
             currentStep = 0;
             treeNodes = [];
             stopPlay();
+            autoFitEnabled = true; // 重置时重新启用自动适应
             updateUI();
         }
 
         // 缩放控制
         function zoomIn() {
-            autoFitEnabled = false; // 手动缩放后禁用自动适应
+            if (autoFitEnabled) {
+                autoFitEnabled = false; // 手动缩放后禁用自动适应
+                updateAutoFitButton();
+            }
             scale *= 1.2;
             scale = Math.min(5, scale);
             document.getElementById('zoomLevel').textContent = Math.round(scale * 100) + '%';
@@ -976,7 +989,10 @@
         }
 
         function zoomOut() {
-            autoFitEnabled = false; // 手动缩放后禁用自动适应
+            if (autoFitEnabled) {
+                autoFitEnabled = false; // 手动缩放后禁用自动适应
+                updateAutoFitButton();
+            }
             scale *= 0.8;
             scale = Math.max(0.1, scale);
             document.getElementById('zoomLevel').textContent = Math.round(scale * 100) + '%';
@@ -985,11 +1001,31 @@
 
         function resetZoom() {
             autoFitEnabled = true; // 重置时重新启用自动适应
+            updateAutoFitButton();
             scale = 1;
             offsetX = 0;
             offsetY = 0;
             document.getElementById('zoomLevel').textContent = '100%';
             drawTree();
+        }
+
+        function toggleAutoFit() {
+            autoFitEnabled = !autoFitEnabled;
+            updateAutoFitButton();
+            if (autoFitEnabled) {
+                fitToView();
+            }
+        }
+
+        function updateAutoFitButton() {
+            const btn = document.getElementById('autoFitBtn');
+            if (autoFitEnabled) {
+                btn.textContent = '🔓 自动适应';
+                btn.style.background = '#16825d';
+            } else {
+                btn.textContent = '🔒 手动模式';
+                btn.style.background = '#0e639c';
+            }
         }
 
         function fitToView() {
@@ -1023,7 +1059,7 @@
             const rect = canvas.parentElement.getBoundingClientRect();
             const scaleX = rect.width / treeWidth;
             const scaleY = rect.height / treeHeight;
-            scale = Math.min(scaleX, scaleY, 1.5); // 最多放大到150%
+            scale = Math.min(scaleX, scaleY); // 移除最大限制，允许任意缩放
 
             // 计算居中偏移
             const treeCenterX = (minX + maxX) / 2;
@@ -1170,12 +1206,17 @@
                 }
             }
 
-            drawTree();
-
-            // 如果启用了自动适应且是第一个节点，自动适应窗口
-            if (autoFitEnabled && previousCount === 0 && treeNodes.length === 1) {
-                // 延迟执行以确保节点位置已计算
-                setTimeout(() => fitToView(), 50);
+            // 如果启用了自动适应，根据情况调整视图
+            if (autoFitEnabled) {
+                // 第一个节点，或每增加5个节点就自动适应一次
+                if (previousCount === 0 || (treeNodes.length > previousCount && treeNodes.length % 5 === 0)) {
+                    // 延迟执行以确保节点位置已计算
+                    setTimeout(() => fitToView(), 50);
+                } else {
+                    drawTree();
+                }
+            } else {
+                drawTree();
             }
         }
 
