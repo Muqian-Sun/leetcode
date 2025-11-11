@@ -541,15 +541,8 @@ public class BacktrackUtils {
         // 每个单位的宽度（增加间距）
         int unitWidth = 15;
 
-        // 构建一个足够大的字符数组
-        int maxX = nodes.stream()
-                .map(layout::get)
-                .mapToInt(pos -> pos.x)
-                .max()
-                .orElse(0);
-
-        char[] line = new char[(maxX + 1) * unitWidth];
-        Arrays.fill(line, ' ');
+        StringBuilder line = new StringBuilder();
+        int currentDisplayPos = 0; // 当前显示位置（不包括ANSI代码）
 
         for (DecisionTreeNode node : nodes) {
             NodePosition pos = layout.get(node);
@@ -558,18 +551,29 @@ public class BacktrackUtils {
             // 计算实际显示宽度（去除ANSI颜色代码）
             int displayWidth = getDisplayWidth(nodeText);
 
-            // 计算节点中心位置
-            int centerX = pos.x * unitWidth;
+            // 计算节点中心的显示位置
+            int centerDisplayPos = pos.x * unitWidth;
 
-            // 节点文本起始位置（居中）
-            int startX = centerX - (displayWidth / 2);
+            // 节点文本起始的显示位置（居中）
+            int startDisplayPos = centerDisplayPos - (displayWidth / 2);
 
-            // 将节点文本放入字符数组（跳过ANSI代码）
-            placeTextInLine(line, startX, nodeText);
+            // 确保不会回退
+            if (startDisplayPos < currentDisplayPos) {
+                startDisplayPos = currentDisplayPos;
+            }
+
+            // 补充空格到目标位置
+            while (currentDisplayPos < startDisplayPos) {
+                line.append(' ');
+                currentDisplayPos++;
+            }
+
+            // 添加节点文本（包含ANSI代码）
+            line.append(nodeText);
+            currentDisplayPos += displayWidth; // 只增加实际显示宽度
         }
 
-        // 输出并去除尾部空格
-        System.out.println(new String(line).replaceAll("\\s+$", ""));
+        System.out.println(line.toString());
     }
 
     /**
@@ -579,31 +583,6 @@ public class BacktrackUtils {
         // 移除ANSI颜色代码
         String plainText = text.replaceAll("\u001B\\[[;\\d]*m", "");
         return plainText.length();
-    }
-
-    /**
-     * 将带颜色的文本放入字符数组的指定位置
-     */
-    private static void placeTextInLine(char[] line, int startPos, String text) {
-        if (startPos < 0 || startPos >= line.length) return;
-
-        int pos = startPos;
-        int i = 0;
-
-        while (i < text.length() && pos < line.length) {
-            // 检查是否是ANSI转义序列的开始
-            if (i < text.length() - 1 && text.charAt(i) == '\u001B' && text.charAt(i + 1) == '[') {
-                // 跳过ANSI代码，不占用显示位置
-                i += 2;
-                while (i < text.length() && text.charAt(i) != 'm') {
-                    i++;
-                }
-                if (i < text.length()) i++; // 跳过 'm'
-            } else {
-                // 普通字符，放入数组
-                line[pos++] = text.charAt(i++);
-            }
-        }
     }
 
     /**
