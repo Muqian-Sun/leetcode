@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>算法执行可视化 - Debug模式</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: #2d2d30;
+            padding: 15px 20px;
+            border-bottom: 1px solid #3e3e42;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header h1 {
+            color: #4ec9b0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .header select {
+            background: #3c3c3c;
+            color: #cccccc;
+            border: 1px solid #555;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+
+        .main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 400px 1fr 350px;
+            overflow: hidden;
+        }
+
+        .panel {
+            background: #252526;
+            border-right: 1px solid #3e3e42;
+            overflow: auto;
+        }
+
+        .panel-title {
+            background: #2d2d30;
+            padding: 10px 15px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #cccccc;
+            border-bottom: 1px solid #3e3e42;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .code-panel {
+            padding: 15px;
+        }
+
+        .code-line {
+            padding: 4px 8px;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .code-line:hover {
+            background: #2a2d2e;
+        }
+
+        .code-line.active {
+            background: #264f78;
+            border-left: 3px solid #007acc;
+        }
+
+        .code-line.completed {
+            background: #1a3a1a;
+        }
+
+        .keyword { color: #569cd6; }
+        .string { color: #ce9178; }
+        .number { color: #b5cea8; }
+        .comment { color: #6a9955; }
+        .function { color: #dcdcaa; }
+
+        .canvas-panel {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: auto;
+            background: #1e1e1e;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .controls {
+            background: #2d2d30;
+            padding: 15px;
+            border-top: 1px solid #3e3e42;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #1177bb;
+        }
+
+        button:disabled {
+            background: #3e3e42;
+            color: #888;
+            cursor: not-allowed;
+        }
+
+        button.play-btn {
+            background: #16825d;
+        }
+
+        button.play-btn:hover {
+            background: #1a9870;
+        }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .speed-control input {
+            width: 100px;
+        }
+
+        .variables-panel {
+            padding: 15px;
+        }
+
+        .var-item {
+            margin-bottom: 12px;
+            padding: 10px;
+            background: #1e1e1e;
+            border-radius: 4px;
+            border-left: 3px solid #4ec9b0;
+        }
+
+        .var-name {
+            color: #9cdcfe;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .var-value {
+            color: #ce9178;
+            font-size: 13px;
+            word-break: break-all;
+        }
+
+        .call-stack {
+            padding: 15px;
+        }
+
+        .stack-frame {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            background: #1e1e1e;
+            border-radius: 4px;
+            border-left: 3px solid #569cd6;
+            font-size: 12px;
+        }
+
+        .stack-frame.active {
+            background: #264f78;
+            border-left-color: #007acc;
+        }
+
+        .stats {
+            padding: 15px;
+            background: #1e1e1e;
+            margin: 10px 15px;
+            border-radius: 4px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 12px;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: #cccccc;
+        }
+
+        .stat-value {
+            color: #4ec9b0;
+            font-weight: 600;
+        }
+
+        .step-info {
+            padding: 12px 15px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #3e3e42;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .step-info strong {
+            color: #4ec9b0;
+        }
+
+        .progress-bar {
+            height: 3px;
+            background: #3e3e42;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: #007acc;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🐛 算法执行可视化 - Debug模式</h1>
+        <select id="algorithmSelect" onchange="loadAlgorithm()">
+            <option value="combinationSum">组合总和 (回溯)</option>
+            <option value="permutations">全排列 (回溯)</option>
+            <option value="maxDepth">二叉树最大深度 (递归)</option>
+        </select>
+    </div>
+
+    <div class="progress-bar">
+        <div class="progress-bar-fill" id="progressBar"></div>
+    </div>
+
+    <div class="main">
+        <!-- 左侧：代码面板 -->
+        <div class="panel">
+            <div class="panel-title">📄 Java代码</div>
+            <div class="code-panel" id="codePanel"></div>
+
+            <div class="panel-title" style="margin-top: 20px;">📊 统计信息</div>
+            <div class="stats" id="statsPanel"></div>
+        </div>
+
+        <!-- 中间：树形可视化 -->
+        <div class="canvas-panel">
+            <div class="panel-title">🌲 决策树/递归树</div>
+            <div class="step-info" id="stepInfo">
+                <strong>当前步骤:</strong> 准备开始执行...
+            </div>
+            <div class="canvas-container">
+                <canvas id="canvas"></canvas>
+            </div>
+            <div class="controls">
+                <button onclick="resetExecution()">⏮ 重置</button>
+                <button onclick="stepBackward()" id="stepBackBtn">⏪ 上一步</button>
+                <button onclick="stepForward()" id="stepForwardBtn">⏩ 下一步</button>
+                <button class="play-btn" onclick="togglePlay()" id="playBtn">▶ 播放</button>
+                <div class="speed-control">
+                    <label>速度:</label>
+                    <input type="range" id="speedSlider" min="100" max="2000" value="800" step="100">
+                    <span id="speedValue">0.8s</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：变量和调用栈 -->
+        <div class="panel">
+            <div class="panel-title">📦 变量监视</div>
+            <div class="variables-panel" id="variablesPanel"></div>
+
+            <div class="panel-title" style="margin-top: 20px;">📚 调用栈</div>
+            <div class="call-stack" id="callStack"></div>
+        </div>
+    </div>
+
+    <script>
+        // 全局状态
+        let canvas, ctx;
+        let currentAlgorithm = 'combinationSum';
+        let executionSteps = [];
+        let currentStep = 0;
+        let isPlaying = false;
+        let playInterval = null;
+        let treeNodes = [];
+
+        // 初始化
+        window.onload = function() {
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+
+            document.getElementById('speedSlider').addEventListener('input', (e) => {
+                const speed = e.target.value;
+                document.getElementById('speedValue').textContent = (speed / 1000).toFixed(1) + 's';
+            });
+
+            loadAlgorithm();
+        };
+
+        // 算法数据定义
+        const algorithms = {
+            combinationSum: {
+                name: '组合总和',
+                code: `<span class="keyword">public</span> <span class="keyword">List</span>&lt;<span class="keyword">List</span>&lt;<span class="keyword">Integer</span>&gt;&gt; <span class="function">combinationSum</span>(<span class="keyword">int</span>[] candidates, <span class="keyword">int</span> target) {
+    <span class="keyword">List</span>&lt;<span class="keyword">List</span>&lt;<span class="keyword">Integer</span>&gt;&gt; result = <span class="keyword">new</span> <span class="keyword">ArrayList</span>&lt;&gt;();
+    <span class="keyword">List</span>&lt;<span class="keyword">Integer</span>&gt; path = <span class="keyword">new</span> <span class="keyword">ArrayList</span>&lt;&gt;();
+    <span class="function">backtrack</span>(candidates, target, <span class="number">0</span>, <span class="number">0</span>, path, result);
+    <span class="keyword">return</span> result;
+}
+
+<span class="keyword">void</span> <span class="function">backtrack</span>(<span class="keyword">int</span>[] candidates, <span class="keyword">int</span> target, <span class="keyword">int</span> start,
+                  <span class="keyword">int</span> sum, <span class="keyword">List</span>&lt;<span class="keyword">Integer</span>&gt; path,
+                  <span class="keyword">List</span>&lt;<span class="keyword">List</span>&lt;<span class="keyword">Integer</span>&gt;&gt; result) {
+    <span class="comment">// 达到目标</span>
+    <span class="keyword">if</span> (sum == target) {
+        result.add(<span class="keyword">new</span> <span class="keyword">ArrayList</span>&lt;&gt;(path));
+        <span class="keyword">return</span>;
+    }
+
+    <span class="comment">// 剪枝：和已经超过目标</span>
+    <span class="keyword">if</span> (sum &gt; target) {
+        <span class="keyword">return</span>;
+    }
+
+    <span class="comment">// 尝试每个候选数</span>
+    <span class="keyword">for</span> (<span class="keyword">int</span> i = start; i &lt; candidates.length; i++) {
+        path.add(candidates[i]);
+        <span class="function">backtrack</span>(candidates, target, i, sum + candidates[i], path, result);
+        path.remove(path.size() - <span class="number">1</span>);
+    }
+}`,
+                steps: [
+                    {
+                        line: 3,
+                        description: '初始化结果列表和路径',
+                        variables: { result: '[]', path: '[]', target: 7, candidates: '[2,3,6,7]' },
+                        callStack: ['combinationSum(candidates=[2,3,6,7], target=7)'],
+                        node: { displayText: '[]', depth: 0, type: 'ROOT', sum: 0 }
+                    },
+                    {
+                        line: 4,
+                        description: '开始回溯，尝试候选数 2',
+                        variables: { result: '[]', path: '[]', sum: 0, start: 0 },
+                        callStack: ['combinationSum(...)', 'backtrack(start=0, sum=0, path=[])'],
+                        node: { displayText: '[]', depth: 0, type: 'INTERNAL', sum: 0 }
+                    },
+                    {
+                        line: 24,
+                        description: '选择 2，加入路径',
+                        variables: { result: '[]', path: '[2]', sum: 2, i: 0 },
+                        callStack: ['combinationSum(...)', 'backtrack(start=0, sum=0, path=[])'],
+                        node: { displayText: '[2]', depth: 1, type: 'INTERNAL', sum: 2, choice: 2, parent: 0 }
+                    },
+                    {
+                        line: 25,
+                        description: '递归调用，继续选择 2',
+                        variables: { result: '[]', path: '[2]', sum: 2, start: 0 },
+                        callStack: ['combinationSum(...)', 'backtrack(start=0, sum=0)', 'backtrack(start=0, sum=2, path=[2])'],
+                        node: { displayText: '[2]', depth: 1, type: 'INTERNAL', sum: 2 }
+                    },
+                    {
+                        line: 24,
+                        description: '选择 2，路径变为 [2,2]',
+                        variables: { result: '[]', path: '[2,2]', sum: 4, i: 0 },
+                        callStack: ['...', 'backtrack(start=0, sum=2, path=[2])'],
+                        node: { displayText: '[2,2]', depth: 2, type: 'INTERNAL', sum: 4, choice: 2, parent: 1 }
+                    },
+                    {
+                        line: 25,
+                        description: '递归调用',
+                        variables: { result: '[]', path: '[2,2]', sum: 4, start: 0 },
+                        callStack: ['...', 'backtrack(start=0, sum=4, path=[2,2])'],
+                        node: { displayText: '[2,2]', depth: 2, type: 'INTERNAL', sum: 4 }
+                    },
+                    {
+                        line: 24,
+                        description: '选择 2，路径变为 [2,2,2]',
+                        variables: { result: '[]', path: '[2,2,2]', sum: 6, i: 0 },
+                        callStack: ['...', 'backtrack(start=0, sum=4, path=[2,2])'],
+                        node: { displayText: '[2,2,2]', depth: 3, type: 'INTERNAL', sum: 6, choice: 2, parent: 2 }
+                    },
+                    {
+                        line: 24,
+                        description: '选择 2，路径变为 [2,2,2,2]，和=8 > 7',
+                        variables: { result: '[]', path: '[2,2,2,2]', sum: 8, i: 0 },
+                        callStack: ['...', 'backtrack(start=0, sum=6, path=[2,2,2])'],
+                        node: { displayText: '[2,2,2,2]', depth: 4, type: 'PRUNED', sum: 8, choice: 2, parent: 3, reason: '和超过目标' }
+                    },
+                    {
+                        line: 18,
+                        description: '剪枝：sum(8) > target(7)，返回',
+                        variables: { result: '[]', path: '[2,2,2,2]', sum: 8 },
+                        callStack: ['...', 'backtrack(start=0, sum=8) -> 剪枝返回'],
+                        node: { displayText: '[2,2,2,2]', depth: 4, type: 'PRUNED', sum: 8 }
+                    },
+                    {
+                        line: 26,
+                        description: '回溯，移除 2，尝试下一个候选数 3',
+                        variables: { result: '[]', path: '[2,2,2]', sum: 6, i: 1 },
+                        callStack: ['...', 'backtrack(start=0, sum=6, path=[2,2,2])'],
+                        node: { displayText: '[2,2,2]', depth: 3, type: 'INTERNAL', sum: 6 }
+                    },
+                    {
+                        line: 24,
+                        description: '选择 3，路径变为 [2,2,3]，和=9 > 7',
+                        variables: { result: '[]', path: '[2,2,3]', sum: 9, i: 1 },
+                        callStack: ['...', 'backtrack(start=0, sum=6, path=[2,2,2])'],
+                        node: { displayText: '[2,2,3]', depth: 4, type: 'PRUNED', sum: 9, choice: 3, parent: 3, reason: '和超过目标' }
+                    },
+                    {
+                        line: 18,
+                        description: '剪枝：sum(9) > target(7)，返回',
+                        variables: { result: '[]', path: '[2,2,3]', sum: 9 },
+                        callStack: ['...', 'backtrack(start=1, sum=9) -> 剪枝返回'],
+                        node: { displayText: '[2,2,3]', depth: 4, type: 'PRUNED', sum: 9 }
+                    },
+                    {
+                        line: 26,
+                        description: '回溯到 [2,2]，尝试候选数 3',
+                        variables: { result: '[]', path: '[2,2]', sum: 4, i: 1 },
+                        callStack: ['...', 'backtrack(start=0, sum=2, path=[2])'],
+                        node: { displayText: '[2,2]', depth: 2, type: 'INTERNAL', sum: 4 }
+                    },
+                    {
+                        line: 24,
+                        description: '选择 3，路径变为 [2,3]',
+                        variables: { result: '[]', path: '[2,3]', sum: 5, i: 1 },
+                        callStack: ['...', 'backtrack(start=0, sum=2, path=[2])'],
+                        node: { displayText: '[2,3]', depth: 2, type: 'INTERNAL', sum: 5, choice: 3, parent: 1 }
+                    },
+                    {
+                        line: 25,
+                        description: '递归调用',
+                        variables: { result: '[]', path: '[2,3]', sum: 5, start: 1 },
+                        callStack: ['...', 'backtrack(start=1, sum=5, path=[2,3])'],
+                        node: { displayText: '[2,3]', depth: 2, type: 'INTERNAL', sum: 5 }
+                    },
+                    {
+                        line: 24,
+                        description: '选择 3，路径变为 [2,3,3]，和=8 > 7',
+                        variables: { result: '[]', path: '[2,3,3]', sum: 8, i: 1 },
+                        callStack: ['...', 'backtrack(start=1, sum=5, path=[2,3])'],
+                        node: { displayText: '[2,3,3]', depth: 3, type: 'PRUNED', sum: 8, choice: 3, parent: 4, reason: '和超过目标' }
+                    },
+                    {
+                        line: 18,
+                        description: '剪枝返回',
+                        variables: { result: '[]', path: '[2,3,3]', sum: 8 },
+                        callStack: ['...', 'backtrack(start=1, sum=8) -> 剪枝返回'],
+                        node: { displayText: '[2,3,3]', depth: 3, type: 'PRUNED', sum: 8 }
+                    },
+                    {
+                        line: 26,
+                        description: '回溯到 [2]，尝试候选数 6',
+                        variables: { result: '[]', path: '[2]', sum: 2, i: 2 },
+                        callStack: ['...', 'backtrack(start=0, sum=0, path=[])'],
+                        node: { displayText: '[2]', depth: 1, type: 'INTERNAL', sum: 2 }
+                    },
+                    {
+                        line: 24,
+                        description: '选择 6，路径变为 [2,6]，和=8 > 7',
+                        variables: { result: '[]', path: '[2,6]', sum: 8, i: 2 },
+                        callStack: ['...', 'backtrack(start=0, sum=0, path=[])'],
+                        node: { displayText: '[2,6]', depth: 2, type: 'PRUNED', sum: 8, choice: 6, parent: 1, reason: '和超过目标' }
+                    },
+                    {
+                        line: 26,
+                        description: '回溯到 []，尝试候选数 3',
+                        variables: { result: '[]', path: '[]', sum: 0, i: 1 },
+                        callStack: ['combinationSum(...)', 'backtrack(start=0, sum=0, path=[])'],
+                        node: { displayText: '[]', depth: 0, type: 'INTERNAL', sum: 0 }
+                    },
+                    {
+                        line: 24,
+                        description: '选择 3，路径变为 [3]',
+                        variables: { result: '[]', path: '[3]', sum: 3, i: 1 },
+                        callStack: ['...', 'backtrack(start=0, sum=0, path=[])'],
+                        node: { displayText: '[3]', depth: 1, type: 'INTERNAL', sum: 3, choice: 3, parent: 0 }
+                    },
+                    {
+                        line: 24,
+                        description: '选择 3，路径变为 [3,3]',
+                        variables: { result: '[]', path: '[3,3]', sum: 6, i: 1 },
+                        callStack: ['...', 'backtrack(start=1, sum=3, path=[3])'],
+                        node: { displayText: '[3,3]', depth: 2, type: 'INTERNAL', sum: 6, choice: 3, parent: 5 }
+                    },
+                    {
+                        line: 24,
+                        description: '选择 3，路径变为 [3,3,3]，和=9 > 7',
+                        variables: { result: '[]', path: '[3,3,3]', sum: 9, i: 1 },
+                        callStack: ['...', 'backtrack(start=1, sum=6, path=[3,3])'],
+                        node: { displayText: '[3,3,3]', depth: 3, type: 'PRUNED', sum: 9, choice: 3, parent: 6, reason: '和超过目标' }
+                    },
+                    {
+                        line: 26,
+                        description: '回溯到 [3]，尝试候选数 6',
+                        variables: { result: '[]', path: '[3]', sum: 3, i: 2 },
+                        callStack: ['...', 'backtrack(start=1, sum=0, path=[])'],
+                        node: { displayText: '[3]', depth: 1, type: 'INTERNAL', sum: 3 }
+                    },
+                    {
+                        line: 24,
+                        description: '选择 6，路径变为 [3,6]，和=9 > 7',
+                        variables: { result: '[]', path: '[3,6]', sum: 9, i: 2 },
+                        callStack: ['...', 'backtrack(start=1, sum=3, path=[3])'],
+                        node: { displayText: '[3,6]', depth: 2, type: 'PRUNED', sum: 9, choice: 6, parent: 5, reason: '和超过目标' }
+                    },
+                    {
+                        line: 26,
+                        description: '回溯到 []，尝试候选数 7',
+                        variables: { result: '[]', path: '[]', sum: 0, i: 3 },
+                        callStack: ['combinationSum(...)', 'backtrack(start=0, sum=0, path=[])'],
+                        node: { displayText: '[]', depth: 0, type: 'INTERNAL', sum: 0 }
+                    },
+                    {
+                        line: 24,
+                        description: '选择 7，路径变为 [7]',
+                        variables: { result: '[]', path: '[7]', sum: 7, i: 3 },
+                        callStack: ['...', 'backtrack(start=0, sum=0, path=[])'],
+                        node: { displayText: '[7]', depth: 1, type: 'INTERNAL', sum: 7, choice: 7, parent: 0 }
+                    },
+                    {
+                        line: 12,
+                        description: '✓ 找到解！sum(7) == target(7)',
+                        variables: { result: '[[7]]', path: '[7]', sum: 7 },
+                        callStack: ['...', 'backtrack(start=3, sum=7) -> 找到解'],
+                        node: { displayText: '[7]', depth: 1, type: 'LEAF', sum: 7, result: true }
+                    },
+                    {
+                        line: 13,
+                        description: '将 [7] 加入结果集',
+                        variables: { result: '[[7]]', path: '[7]' },
+                        callStack: ['...'],
+                        node: { displayText: '[7]', depth: 1, type: 'LEAF', sum: 7 }
+                    },
+                    {
+                        line: 5,
+                        description: '回溯完成，返回所有结果',
+                        variables: { result: '[[7]]' },
+                        callStack: ['combinationSum(...) -> 返回结果'],
+                        node: null
+                    }
+                ]
+            }
+        };
+
+        // 加载算法
+        function loadAlgorithm() {
+            const select = document.getElementById('algorithmSelect');
+            currentAlgorithm = select.value;
+            const algo = algorithms[currentAlgorithm];
+
+            // 显示代码
+            const codePanel = document.getElementById('codePanel');
+            const lines = algo.code.split('\n');
+            codePanel.innerHTML = lines.map((line, i) =>
+                `<div class="code-line" data-line="${i}">${i.toString().padStart(2, '0')}  ${line}</div>`
+            ).join('');
+
+            // 加载执行步骤
+            executionSteps = algo.steps;
+            currentStep = 0;
+
+            // 重置UI
+            resetExecution();
+        }
+
+        // 重置执行
+        function resetExecution() {
+            currentStep = 0;
+            treeNodes = [];
+            stopPlay();
+            updateUI();
+        }
+
+        // 单步前进
+        function stepForward() {
+            if (currentStep < executionSteps.length - 1) {
+                currentStep++;
+                updateUI();
+            }
+        }
+
+        // 单步后退
+        function stepBackward() {
+            if (currentStep > 0) {
+                currentStep--;
+                updateUI();
+            }
+        }
+
+        // 播放/暂停
+        function togglePlay() {
+            if (isPlaying) {
+                stopPlay();
+            } else {
+                startPlay();
+            }
+        }
+
+        function startPlay() {
+            isPlaying = true;
+            document.getElementById('playBtn').textContent = '⏸ 暂停';
+
+            const speed = parseInt(document.getElementById('speedSlider').value);
+            playInterval = setInterval(() => {
+                if (currentStep < executionSteps.length - 1) {
+                    stepForward();
+                } else {
+                    stopPlay();
+                }
+            }, speed);
+        }
+
+        function stopPlay() {
+            isPlaying = false;
+            document.getElementById('playBtn').textContent = '▶ 播放';
+            if (playInterval) {
+                clearInterval(playInterval);
+                playInterval = null;
+            }
+        }
+
+        // 更新UI
+        function updateUI() {
+            const step = executionSteps[currentStep];
+
+            // 更新进度条
+            const progress = ((currentStep + 1) / executionSteps.length) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+
+            // 高亮当前行
+            document.querySelectorAll('.code-line').forEach(line => {
+                line.classList.remove('active', 'completed');
+                const lineNum = parseInt(line.dataset.line);
+                if (lineNum === step.line) {
+                    line.classList.add('active');
+                } else if (lineNum < step.line) {
+                    line.classList.add('completed');
+                }
+            });
+
+            // 更新步骤说明
+            document.getElementById('stepInfo').innerHTML =
+                `<strong>步骤 ${currentStep + 1}/${executionSteps.length}:</strong> ${step.description}`;
+
+            // 更新变量
+            updateVariables(step.variables);
+
+            // 更新调用栈
+            updateCallStack(step.callStack);
+
+            // 更新树节点
+            if (step.node) {
+                updateTree(step.node);
+            }
+
+            // 更新统计
+            updateStats();
+
+            // 更新按钮状态
+            document.getElementById('stepBackBtn').disabled = currentStep === 0;
+            document.getElementById('stepForwardBtn').disabled = currentStep === executionSteps.length - 1;
+        }
+
+        function updateVariables(vars) {
+            const panel = document.getElementById('variablesPanel');
+            panel.innerHTML = Object.entries(vars).map(([name, value]) => `
+                <div class="var-item">
+                    <div class="var-name">${name}</div>
+                    <div class="var-value">${value}</div>
+                </div>
+            `).join('');
+        }
+
+        function updateCallStack(stack) {
+            const panel = document.getElementById('callStack');
+            panel.innerHTML = stack.map((frame, i) => `
+                <div class="stack-frame ${i === stack.length - 1 ? 'active' : ''}">
+                    ${frame}
+                </div>
+            `).reverse().join('');
+        }
+
+        function updateTree(node) {
+            // 添加或更新节点
+            if (node.parent !== undefined) {
+                // 子节点
+                if (!treeNodes.some(n => n.displayText === node.displayText && n.depth === node.depth)) {
+                    treeNodes.push({...node, id: treeNodes.length});
+                } else {
+                    // 更新现有节点
+                    const existing = treeNodes.find(n => n.displayText === node.displayText && n.depth === node.depth);
+                    if (existing) {
+                        Object.assign(existing, node);
+                    }
+                }
+            } else if (!treeNodes.some(n => n.depth === 0)) {
+                // 根节点
+                treeNodes.push({...node, id: 0});
+            } else {
+                // 更新根节点
+                const root = treeNodes.find(n => n.depth === 0);
+                if (root) {
+                    Object.assign(root, node);
+                }
+            }
+
+            drawTree();
+        }
+
+        function drawTree() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (treeNodes.length === 0) return;
+
+            // 简单的纵向布局
+            const levelGap = 80;
+            const nodeGap = 100;
+            const startY = 50;
+
+            // 按深度分组
+            const byDepth = {};
+            treeNodes.forEach(node => {
+                if (!byDepth[node.depth]) byDepth[node.depth] = [];
+                byDepth[node.depth].push(node);
+            });
+
+            // 计算位置
+            Object.keys(byDepth).forEach(depth => {
+                const nodes = byDepth[depth];
+                const totalWidth = nodes.length * nodeGap;
+                const startX = (canvas.width - totalWidth) / 2 + nodeGap / 2;
+
+                nodes.forEach((node, i) => {
+                    node.x = startX + i * nodeGap;
+                    node.y = startY + parseInt(depth) * levelGap;
+                });
+            });
+
+            // 绘制连接线
+            treeNodes.forEach(node => {
+                if (node.parent !== undefined) {
+                    const parent = treeNodes[node.parent];
+                    if (parent) {
+                        ctx.beginPath();
+                        ctx.moveTo(parent.x, parent.y + 25);
+                        ctx.lineTo(node.x, node.y - 25);
+                        ctx.strokeStyle = '#3e3e42';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    }
+                }
+            });
+
+            // 绘制节点
+            treeNodes.forEach(node => {
+                let color = '#0e639c';
+                if (node.type === 'LEAF') color = '#16825d';
+                if (node.type === 'PRUNED') color = '#c72e0f';
+                if (node.type === 'ROOT') color = '#4ec9b0';
+
+                // 圆形
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, 25, 0, 2 * Math.PI);
+                ctx.fillStyle = color;
+                ctx.fill();
+                ctx.strokeStyle = '#d4d4d4';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // 文本
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 12px Consolas';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                let text = node.displayText;
+                if (text.length > 8) text = text.substring(0, 8) + '...';
+                ctx.fillText(text, node.x, node.y);
+
+                // 和值
+                if (node.sum !== undefined) {
+                    ctx.font = '10px Consolas';
+                    ctx.fillStyle = '#cccccc';
+                    ctx.fillText(`和=${node.sum}`, node.x, node.y + 40);
+                }
+
+                // 标记
+                if (node.type === 'LEAF') {
+                    ctx.fillText('✓', node.x + 20, node.y - 20);
+                } else if (node.type === 'PRUNED') {
+                    ctx.fillText('✂', node.x + 20, node.y - 20);
+                }
+            });
+        }
+
+        function updateStats() {
+            const total = treeNodes.length;
+            const leaves = treeNodes.filter(n => n.type === 'LEAF').length;
+            const pruned = treeNodes.filter(n => n.type === 'PRUNED').length;
+            const maxDepth = Math.max(...treeNodes.map(n => n.depth || 0));
+
+            document.getElementById('statsPanel').innerHTML = `
+                <div class="stat-item">
+                    <span class="stat-label">总节点数:</span>
+                    <span class="stat-value">${total}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">叶子节点:</span>
+                    <span class="stat-value">${leaves}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">剪枝节点:</span>
+                    <span class="stat-value">${pruned}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">最大深度:</span>
+                    <span class="stat-value">${maxDepth}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">当前步骤:</span>
+                    <span class="stat-value">${currentStep + 1}/${executionSteps.length}</span>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
