@@ -124,6 +124,19 @@
             display: flex;
             gap: 10px;
             align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .zoom-controls {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            margin-left: 10px;
+        }
+
+        .zoom-controls button {
+            padding: 6px 12px;
+            font-size: 12px;
         }
 
         button {
@@ -306,6 +319,12 @@
                     <input type="range" id="speedSlider" min="100" max="2000" value="800" step="100">
                     <span id="speedValue">0.8s</span>
                 </div>
+                <div class="zoom-controls">
+                    <button onclick="zoomIn()">🔍+</button>
+                    <button onclick="zoomOut()">🔍-</button>
+                    <button onclick="resetZoom()">重置视图</button>
+                    <span id="zoomLevel">100%</span>
+                </div>
             </div>
         </div>
 
@@ -328,6 +347,14 @@
         let isPlaying = false;
         let playInterval = null;
         let treeNodes = [];
+
+        // 缩放和平移
+        let scale = 1;
+        let offsetX = 0;
+        let offsetY = 0;
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
 
         // 初始化
         window.onload = function() {
@@ -358,6 +385,44 @@
                 const speed = e.target.value;
                 document.getElementById('speedValue').textContent = (speed / 1000).toFixed(1) + 's';
             });
+
+            // 鼠标滚轮缩放
+            canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                scale *= delta;
+                scale = Math.max(0.1, Math.min(5, scale));
+                document.getElementById('zoomLevel').textContent = Math.round(scale * 100) + '%';
+                drawTree();
+            });
+
+            // 鼠标拖拽平移
+            canvas.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                dragStartX = e.clientX - offsetX;
+                dragStartY = e.clientY - offsetY;
+                canvas.style.cursor = 'grabbing';
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    offsetX = e.clientX - dragStartX;
+                    offsetY = e.clientY - dragStartY;
+                    drawTree();
+                }
+            });
+
+            canvas.addEventListener('mouseup', () => {
+                isDragging = false;
+                canvas.style.cursor = 'grab';
+            });
+
+            canvas.addEventListener('mouseleave', () => {
+                isDragging = false;
+                canvas.style.cursor = 'default';
+            });
+
+            canvas.style.cursor = 'grab';
 
             loadAlgorithm();
         };
@@ -606,6 +671,264 @@
                         node: null
                     }
                 ]
+            },
+            permutations: {
+                name: '全排列',
+                code: `<span class="keyword">public</span> <span class="keyword">List</span>&lt;<span class="keyword">List</span>&lt;<span class="keyword">Integer</span>&gt;&gt; <span class="function">permute</span>(<span class="keyword">int</span>[] nums) {
+    <span class="keyword">List</span>&lt;<span class="keyword">List</span>&lt;<span class="keyword">Integer</span>&gt;&gt; result = <span class="keyword">new</span> <span class="keyword">ArrayList</span>&lt;&gt;();
+    <span class="keyword">List</span>&lt;<span class="keyword">Integer</span>&gt; path = <span class="keyword">new</span> <span class="keyword">ArrayList</span>&lt;&gt;();
+    <span class="keyword">boolean</span>[] used = <span class="keyword">new</span> <span class="keyword">boolean</span>[nums.length];
+    <span class="function">backtrack</span>(nums, path, used, result);
+    <span class="keyword">return</span> result;
+}
+
+<span class="keyword">void</span> <span class="function">backtrack</span>(<span class="keyword">int</span>[] nums, <span class="keyword">List</span>&lt;<span class="keyword">Integer</span>&gt; path,
+                  <span class="keyword">boolean</span>[] used,
+                  <span class="keyword">List</span>&lt;<span class="keyword">List</span>&lt;<span class="keyword">Integer</span>&gt;&gt; result) {
+    <span class="comment">// 找到一个排列</span>
+    <span class="keyword">if</span> (path.size() == nums.length) {
+        result.add(<span class="keyword">new</span> <span class="keyword">ArrayList</span>&lt;&gt;(path));
+        <span class="keyword">return</span>;
+    }
+
+    <span class="comment">// 尝试每个未使用的数字</span>
+    <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; nums.length; i++) {
+        <span class="keyword">if</span> (used[i]) <span class="keyword">continue</span>;
+
+        path.add(nums[i]);
+        used[i] = <span class="keyword">true</span>;
+        <span class="function">backtrack</span>(nums, path, used, result);
+        used[i] = <span class="keyword">false</span>;
+        path.remove(path.size() - <span class="number">1</span>);
+    }
+}`,
+                steps: [
+                    {
+                        line: 2,
+                        description: '初始化结果列表、路径和used数组',
+                        variables: { result: '[]', path: '[]', nums: '[1,2,3]', used: '[F,F,F]' },
+                        callStack: ['permute(nums=[1,2,3])'],
+                        node: { displayText: '[]', depth: 0, type: 'ROOT' }
+                    },
+                    {
+                        line: 20,
+                        description: '选择 1，加入路径',
+                        variables: { result: '[]', path: '[1]', used: '[T,F,F]', i: 0 },
+                        callStack: ['permute(...)', 'backtrack(path=[])'],
+                        node: { displayText: '[1]', depth: 1, type: 'INTERNAL', choice: 1, parent: 0 }
+                    },
+                    {
+                        line: 20,
+                        description: '选择 2，路径变为 [1,2]',
+                        variables: { result: '[]', path: '[1,2]', used: '[T,T,F]', i: 1 },
+                        callStack: ['...', 'backtrack(path=[1])'],
+                        node: { displayText: '[1,2]', depth: 2, type: 'INTERNAL', choice: 2, parent: 1 }
+                    },
+                    {
+                        line: 20,
+                        description: '选择 3，路径变为 [1,2,3]',
+                        variables: { result: '[]', path: '[1,2,3]', used: '[T,T,T]', i: 2 },
+                        callStack: ['...', 'backtrack(path=[1,2])'],
+                        node: { displayText: '[1,2,3]', depth: 3, type: 'LEAF', choice: 3, parent: 2, result: true }
+                    },
+                    {
+                        line: 13,
+                        description: '✓ 找到一个排列！加入结果集',
+                        variables: { result: '[[1,2,3]]', path: '[1,2,3]' },
+                        callStack: ['...', 'backtrack(path=[1,2,3]) -> 找到解'],
+                        node: { displayText: '[1,2,3]', depth: 3, type: 'LEAF' }
+                    },
+                    {
+                        line: 25,
+                        description: '回溯到 [1]，尝试 3',
+                        variables: { result: '[[1,2,3]]', path: '[1]', used: '[T,F,F]', i: 2 },
+                        callStack: ['...', 'backtrack(path=[1])'],
+                        node: { displayText: '[1]', depth: 1, type: 'INTERNAL' }
+                    },
+                    {
+                        line: 20,
+                        description: '选择 3，路径变为 [1,3]',
+                        variables: { result: '[[1,2,3]]', path: '[1,3]', used: '[T,F,T]', i: 2 },
+                        callStack: ['...', 'backtrack(path=[1])'],
+                        node: { displayText: '[1,3]', depth: 2, type: 'INTERNAL', choice: 3, parent: 1 }
+                    },
+                    {
+                        line: 20,
+                        description: '选择 2，路径变为 [1,3,2]',
+                        variables: { result: '[[1,2,3]]', path: '[1,3,2]', used: '[T,T,T]', i: 1 },
+                        callStack: ['...', 'backtrack(path=[1,3])'],
+                        node: { displayText: '[1,3,2]', depth: 3, type: 'LEAF', choice: 2, parent: 3, result: true }
+                    },
+                    {
+                        line: 13,
+                        description: '✓ 找到排列 [1,3,2]',
+                        variables: { result: '[[1,2,3],[1,3,2]]', path: '[1,3,2]' },
+                        callStack: ['...'],
+                        node: { displayText: '[1,3,2]', depth: 3, type: 'LEAF' }
+                    },
+                    {
+                        line: 25,
+                        description: '回溯到 []，尝试 2',
+                        variables: { result: '[[1,2,3],[1,3,2]]', path: '[]', used: '[F,F,F]', i: 1 },
+                        callStack: ['permute(...)', 'backtrack(path=[])'],
+                        node: { displayText: '[]', depth: 0, type: 'ROOT' }
+                    },
+                    {
+                        line: 20,
+                        description: '选择 2，路径变为 [2]',
+                        variables: { result: '[[1,2,3],[1,3,2]]', path: '[2]', used: '[F,T,F]', i: 1 },
+                        callStack: ['...', 'backtrack(path=[])'],
+                        node: { displayText: '[2]', depth: 1, type: 'INTERNAL', choice: 2, parent: 0 }
+                    },
+                    {
+                        line: 20,
+                        description: '选择 1，路径变为 [2,1]',
+                        variables: { result: '[[1,2,3],[1,3,2]]', path: '[2,1]', used: '[T,T,F]', i: 0 },
+                        callStack: ['...', 'backtrack(path=[2])'],
+                        node: { displayText: '[2,1]', depth: 2, type: 'INTERNAL', choice: 1, parent: 5 }
+                    },
+                    {
+                        line: 20,
+                        description: '选择 3，路径变为 [2,1,3]',
+                        variables: { result: '[[1,2,3],[1,3,2]]', path: '[2,1,3]', used: '[T,T,T]', i: 2 },
+                        callStack: ['...', 'backtrack(path=[2,1])'],
+                        node: { displayText: '[2,1,3]', depth: 3, type: 'LEAF', choice: 3, parent: 6, result: true }
+                    },
+                    {
+                        line: 13,
+                        description: '✓ 找到排列 [2,1,3]',
+                        variables: { result: '[[1,2,3],[1,3,2],[2,1,3]]', path: '[2,1,3]' },
+                        callStack: ['...'],
+                        node: { displayText: '[2,1,3]', depth: 3, type: 'LEAF' }
+                    },
+                    {
+                        line: 5,
+                        description: '回溯完成，返回所有6个排列',
+                        variables: { result: '[[1,2,3],[1,3,2],[2,1,3],...]' },
+                        callStack: ['permute(...) -> 返回结果'],
+                        node: null
+                    }
+                ]
+            },
+            maxDepth: {
+                name: '二叉树最大深度',
+                code: `<span class="keyword">public</span> <span class="keyword">int</span> <span class="function">maxDepth</span>(<span class="keyword">TreeNode</span> root) {
+    <span class="keyword">if</span> (root == <span class="keyword">null</span>) {
+        <span class="keyword">return</span> <span class="number">0</span>;
+    }
+
+    <span class="keyword">int</span> leftDepth = <span class="function">maxDepth</span>(root.left);
+    <span class="keyword">int</span> rightDepth = <span class="function">maxDepth</span>(root.right);
+
+    <span class="keyword">return</span> Math.max(leftDepth, rightDepth) + <span class="number">1</span>;
+}
+
+<span class="comment">// 二叉树节点</span>
+<span class="keyword">class</span> <span class="keyword">TreeNode</span> {
+    <span class="keyword">int</span> val;
+    <span class="keyword">TreeNode</span> left, right;
+    <span class="keyword">TreeNode</span>(<span class="keyword">int</span> val) { <span class="keyword">this</span>.val = val; }
+}`,
+                steps: [
+                    {
+                        line: 1,
+                        description: '计算根节点3的最大深度',
+                        variables: { root: '3' },
+                        callStack: ['maxDepth(3)'],
+                        node: { displayText: '3', depth: 0, type: 'ROOT', val: 3 }
+                    },
+                    {
+                        line: 6,
+                        description: '递归计算左子树(节点9)的深度',
+                        variables: { root: '9' },
+                        callStack: ['maxDepth(3)', 'maxDepth(9)'],
+                        node: { displayText: '9', depth: 1, type: 'INTERNAL', val: 9, parent: 0 }
+                    },
+                    {
+                        line: 2,
+                        description: '节点9的左子树为null',
+                        variables: { root: 'null', returnValue: 0 },
+                        callStack: ['maxDepth(3)', 'maxDepth(9)', 'maxDepth(null)'],
+                        node: { displayText: 'null', depth: 2, type: 'LEAF', parent: 1, result: 0 }
+                    },
+                    {
+                        line: 2,
+                        description: '节点9的右子树为null',
+                        variables: { root: 'null', returnValue: 0 },
+                        callStack: ['maxDepth(3)', 'maxDepth(9)', 'maxDepth(null)'],
+                        node: { displayText: 'null', depth: 2, type: 'LEAF', parent: 1, result: 0 }
+                    },
+                    {
+                        line: 9,
+                        description: '节点9返回深度: max(0,0)+1=1',
+                        variables: { leftDepth: 0, rightDepth: 0, returnValue: 1 },
+                        callStack: ['maxDepth(3)', 'maxDepth(9) -> 返回1'],
+                        node: { displayText: '9→1', depth: 1, type: 'INTERNAL', val: 9, result: 1 }
+                    },
+                    {
+                        line: 7,
+                        description: '递归计算右子树(节点20)的深度',
+                        variables: { root: '20', leftDepth: 1 },
+                        callStack: ['maxDepth(3)', 'maxDepth(20)'],
+                        node: { displayText: '20', depth: 1, type: 'INTERNAL', val: 20, parent: 0 }
+                    },
+                    {
+                        line: 6,
+                        description: '递归计算节点20的左子树(节点15)',
+                        variables: { root: '15' },
+                        callStack: ['maxDepth(3)', 'maxDepth(20)', 'maxDepth(15)'],
+                        node: { displayText: '15', depth: 2, type: 'INTERNAL', val: 15, parent: 3 }
+                    },
+                    {
+                        line: 2,
+                        description: '节点15的左右子树都为null',
+                        variables: { root: 'null', returnValue: 0 },
+                        callStack: ['...', 'maxDepth(15)', 'maxDepth(null)'],
+                        node: { displayText: 'null', depth: 3, type: 'LEAF', parent: 4, result: 0 }
+                    },
+                    {
+                        line: 9,
+                        description: '节点15返回深度: max(0,0)+1=1',
+                        variables: { leftDepth: 0, rightDepth: 0, returnValue: 1 },
+                        callStack: ['...', 'maxDepth(15) -> 返回1'],
+                        node: { displayText: '15→1', depth: 2, type: 'INTERNAL', val: 15, result: 1 }
+                    },
+                    {
+                        line: 7,
+                        description: '递归计算节点20的右子树(节点7)',
+                        variables: { root: '7' },
+                        callStack: ['maxDepth(3)', 'maxDepth(20)', 'maxDepth(7)'],
+                        node: { displayText: '7', depth: 2, type: 'INTERNAL', val: 7, parent: 3 }
+                    },
+                    {
+                        line: 2,
+                        description: '节点7的左右子树都为null',
+                        variables: { root: 'null', returnValue: 0 },
+                        callStack: ['...', 'maxDepth(7)', 'maxDepth(null)'],
+                        node: { displayText: 'null', depth: 3, type: 'LEAF', parent: 5, result: 0 }
+                    },
+                    {
+                        line: 9,
+                        description: '节点7返回深度: max(0,0)+1=1',
+                        variables: { leftDepth: 0, rightDepth: 0, returnValue: 1 },
+                        callStack: ['...', 'maxDepth(7) -> 返回1'],
+                        node: { displayText: '7→1', depth: 2, type: 'INTERNAL', val: 7, result: 1 }
+                    },
+                    {
+                        line: 9,
+                        description: '节点20返回深度: max(1,1)+1=2',
+                        variables: { leftDepth: 1, rightDepth: 1, returnValue: 2 },
+                        callStack: ['maxDepth(3)', 'maxDepth(20) -> 返回2'],
+                        node: { displayText: '20→2', depth: 1, type: 'INTERNAL', val: 20, result: 2 }
+                    },
+                    {
+                        line: 9,
+                        description: '✓ 根节点返回最大深度: max(1,2)+1=3',
+                        variables: { leftDepth: 1, rightDepth: 2, returnValue: 3 },
+                        callStack: ['maxDepth(3) -> 返回3'],
+                        node: { displayText: '3→3', depth: 0, type: 'ROOT', val: 3, result: 3 }
+                    }
+                ]
             }
         };
 
@@ -636,6 +959,29 @@
             treeNodes = [];
             stopPlay();
             updateUI();
+        }
+
+        // 缩放控制
+        function zoomIn() {
+            scale *= 1.2;
+            scale = Math.min(5, scale);
+            document.getElementById('zoomLevel').textContent = Math.round(scale * 100) + '%';
+            drawTree();
+        }
+
+        function zoomOut() {
+            scale *= 0.8;
+            scale = Math.max(0.1, scale);
+            document.getElementById('zoomLevel').textContent = Math.round(scale * 100) + '%';
+            drawTree();
+        }
+
+        function resetZoom() {
+            scale = 1;
+            offsetX = 0;
+            offsetY = 0;
+            document.getElementById('zoomLevel').textContent = '100%';
+            drawTree();
         }
 
         // 单步前进
@@ -780,6 +1126,11 @@
 
             if (treeNodes.length === 0) return;
 
+            // 保存上下文并应用缩放和平移
+            ctx.save();
+            ctx.translate(offsetX, offsetY);
+            ctx.scale(scale, scale);
+
             // 改进的树布局算法
             const levelGap = 100;
             const minNodeGap = 80;
@@ -920,6 +1271,9 @@
                     ctx.fillText('✂', node.x + nodeRadius + 10, node.y - nodeRadius);
                 }
             });
+
+            // 恢复上下文
+            ctx.restore();
         }
 
         function updateStats() {
