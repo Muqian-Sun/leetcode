@@ -115,6 +115,13 @@ public class ColorUtils {
     }
 
     /**
+     * 次要信息/暗淡（灰色）
+     */
+    public static String dim(String text) {
+        return color(text, GRAY);
+    }
+
+    /**
      * 检查颜色是否启用
      */
     public static boolean isEnabled() {

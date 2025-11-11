@@ -293,24 +293,53 @@ public class BacktrackUtils {
         }
 
         // 打印标题
-        System.out.println("\n" + ColorUtils.phase("╔═══════════════════════════════════════════"));
+        System.out.println("\n" + ColorUtils.phase("╔═══════════════════════════════════════════════════════════════════"));
         System.out.println(ColorUtils.phase("║ " + title));
-        System.out.println(ColorUtils.phase("╚═══════════════════════════════════════════"));
+        System.out.println(ColorUtils.phase("╠═══════════════════════════════════════════════════════════════════"));
+        System.out.println(ColorUtils.phase("║ 纵向决策树展示（从上到下：根→分支→叶子）"));
+        System.out.println(ColorUtils.phase("╚═══════════════════════════════════════════════════════════════════"));
+        System.out.println();
+
+        // 打印图例
+        System.out.println(ColorUtils.info("【图例】"));
+        System.out.println("  " + ColorUtils.node("[]") + " = 路径状态");
+        System.out.println("  " + ColorUtils.success("绿色✓") + " = 找到有效结果");
+        System.out.println("  " + ColorUtils.error("红色✂") + " = 剪枝终止");
+        System.out.println("  " + ColorUtils.info("选:X") + " = 当前步骤的选择");
+        System.out.println("  " + ColorUtils.dim("(深度N)") + " = 递归深度");
         System.out.println();
 
         // 使用tree-printer库渲染纵向树
         DecisionTreeNodeAdapter adapter = new DecisionTreeNodeAdapter(root);
         hu.webarticum.treeprinter.printer.traditional.TraditionalTreePrinter printer =
                 new hu.webarticum.treeprinter.printer.traditional.TraditionalTreePrinter();
+        System.out.println(ColorUtils.phase("【决策树结构】"));
         printer.print(adapter);
 
         // 打印统计信息
         int[] stats = calculateTreeStats(root);
-        System.out.println("\n" + ColorUtils.info("统计信息:"));
-        System.out.println("  • 总节点数: " + ColorUtils.node(String.valueOf(stats[0])));
-        System.out.println("  • 叶子节点: " + ColorUtils.success(String.valueOf(stats[1])));
-        System.out.println("  • 剪枝节点: " + ColorUtils.error(String.valueOf(stats[2])));
-        System.out.println("  • 最大深度: " + ColorUtils.highlight(String.valueOf(stats[3])));
+        System.out.println("\n" + ColorUtils.phase("【统计信息】"));
+        System.out.println("  • 总节点数: " + ColorUtils.node(String.valueOf(stats[0])) +
+                " " + ColorUtils.dim("(包括根节点、内部节点和叶子节点)"));
+        System.out.println("  • 叶子节点: " + ColorUtils.success(String.valueOf(stats[1])) +
+                " " + ColorUtils.dim("(找到的有效解)"));
+        System.out.println("  • 剪枝节点: " + ColorUtils.error(String.valueOf(stats[2])) +
+                " " + ColorUtils.dim("(被提前终止的分支)"));
+        System.out.println("  • 最大深度: " + ColorUtils.highlight(String.valueOf(stats[3])) +
+                " " + ColorUtils.dim("(从根到最深叶子的距离)"));
+
+        // 计算分支因子
+        double branchingFactor = stats[0] > 1 ? (double)(stats[0] - stats[1]) / (stats[0] - stats[1] - stats[2] + 1) : 0;
+        System.out.println("  • 平均分支因子: " + ColorUtils.info(String.format("%.2f", branchingFactor)) +
+                " " + ColorUtils.dim("(每个非叶节点的平均子节点数)"));
+
+        // 剪枝效率
+        if (stats[0] > 1) {
+            double pruningRate = (double)stats[2] / stats[0] * 100;
+            System.out.println("  • 剪枝率: " + ColorUtils.info(String.format("%.1f%%", pruningRate)) +
+                    " " + ColorUtils.dim("(被剪枝的节点占比)"));
+        }
+
         System.out.println();
     }
 

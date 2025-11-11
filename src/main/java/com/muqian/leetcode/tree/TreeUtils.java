@@ -501,4 +501,129 @@ public class TreeUtils {
     public static String printEmptyLines(int count) {
         return "\n".repeat(Math.max(0, count));
     }
+
+    /**
+     * 打印递归调用树（纵向展示）
+     * 使用tree-printer库实现专业的递归调用可视化
+     *
+     * @param root 递归调用树的根节点
+     * @param title 标题
+     */
+    public static void printRecursionTree(RecursionTreeNode root, String title) {
+        if (root == null) {
+            System.out.println("递归调用树为空");
+            return;
+        }
+
+        // 打印标题
+        System.out.println("\n" + ColorUtils.phase("╔═══════════════════════════════════════════════════════════════════"));
+        System.out.println(ColorUtils.phase("║ " + title));
+        System.out.println(ColorUtils.phase("╠═══════════════════════════════════════════════════════════════════"));
+        System.out.println(ColorUtils.phase("║ 递归调用树展示（从上到下：调用关系和返回路径）"));
+        System.out.println(ColorUtils.phase("╚═══════════════════════════════════════════════════════════════════"));
+        System.out.println();
+
+        // 打印图例
+        System.out.println(ColorUtils.info("【图例】"));
+        System.out.println("  " + ColorUtils.node("数字") + " = 二叉树节点值");
+        System.out.println("  " + ColorUtils.nullNode() + " = 空节点");
+        System.out.println("  " + ColorUtils.highlight("→ 返回值") + " = 函数返回值");
+        System.out.println("  " + ColorUtils.error("[基础情况]") + " = 递归终止条件");
+        System.out.println("  " + ColorUtils.dim("(深度N)") + " = 递归调用深度");
+        System.out.println();
+
+        // 使用tree-printer库渲染纵向树
+        RecursionTreeNodeAdapter adapter = new RecursionTreeNodeAdapter(root);
+        hu.webarticum.treeprinter.printer.traditional.TraditionalTreePrinter printer =
+                new hu.webarticum.treeprinter.printer.traditional.TraditionalTreePrinter();
+        System.out.println(ColorUtils.phase("【递归调用树结构】"));
+        printer.print(adapter);
+
+        // 打印统计信息
+        int[] stats = calculateRecursionTreeStats(root);
+        System.out.println("\n" + ColorUtils.phase("【统计信息】"));
+        System.out.println("  • 总调用次数: " + ColorUtils.node(String.valueOf(stats[0])) +
+                " " + ColorUtils.dim("(包括所有递归调用)"));
+        System.out.println("  • 基础情况次数: " + ColorUtils.success(String.valueOf(stats[1])) +
+                " " + ColorUtils.dim("(递归终止的次数)"));
+        System.out.println("  • 最大递归深度: " + ColorUtils.highlight(String.valueOf(stats[2])) +
+                " " + ColorUtils.dim("(调用栈的最大深度)"));
+        System.out.println("  • 平均分支数: " + ColorUtils.info(String.format("%.2f",
+                stats[0] > 1 ? (double)(stats[0] - stats[1]) / (stats[0] - stats[1]) : 0)) +
+                " " + ColorUtils.dim("(每次调用的平均子调用数)"));
+
+        System.out.println();
+    }
+
+    /**
+     * 计算递归调用树的统计信息
+     *
+     * @param root 根节点
+     * @return [总调用次数, 基础情况次数, 最大深度]
+     */
+    private static int[] calculateRecursionTreeStats(RecursionTreeNode root) {
+        int[] stats = new int[3]; // [total, baseCase, maxDepth]
+        calculateRecursionStatsRecursive(root, stats);
+        return stats;
+    }
+
+    /**
+     * 递归计算递归调用树的统计信息
+     */
+    private static void calculateRecursionStatsRecursive(RecursionTreeNode node, int[] stats) {
+        if (node == null) return;
+
+        // 总调用次数
+        stats[0]++;
+
+        // 更新最大深度
+        stats[2] = Math.max(stats[2], node.getDepth());
+
+        // 统计基础情况
+        if (node.getType() == RecursionTreeNode.NodeType.BASE_CASE) {
+            stats[1]++;
+        }
+
+        // 递归处理子调用
+        for (RecursionTreeNode child : node.getChildren()) {
+            calculateRecursionStatsRecursive(child, stats);
+        }
+    }
+
+    /**
+     * 打印简化版递归调用树（水平展开）
+     *
+     * @param root 递归调用树的根节点
+     * @param title 标题
+     */
+    public static void printCompactRecursionTree(RecursionTreeNode root, String title) {
+        if (root == null) {
+            System.out.println("递归调用树为空");
+            return;
+        }
+
+        System.out.println("\n" + ColorUtils.phase("【" + title + "】"));
+        System.out.println();
+        printCompactRecursionRecursive(root, 0, "");
+        System.out.println();
+    }
+
+    /**
+     * 递归打印简化版递归调用树
+     */
+    private static void printCompactRecursionRecursive(RecursionTreeNode node, int level, String prefix) {
+        if (node == null) return;
+
+        String indent = "  ".repeat(level);
+        String connector = level > 0 ? "└─ " : "";
+
+        System.out.println(prefix + indent + connector + node.getDisplayText());
+
+        List<RecursionTreeNode> children = node.getChildren();
+        for (int i = 0; i < children.size(); i++) {
+            boolean isLast = (i == children.size() - 1);
+            String childPrefix = prefix + indent + (level > 0 ? (isLast ? "   " : "│  ") : "");
+            printCompactRecursionRecursive(children.get(i), level + 1, childPrefix);
+        }
+    }
 }

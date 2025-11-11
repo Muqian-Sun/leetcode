@@ -21,8 +21,8 @@ public class DecisionTreeNodeAdapter implements TreeNode {
     }
 
     /**
-     * 返回节点的内容文本
-     * 包含节点显示文本、状态标记和颜色
+     * 返回节点的内容文本（增强版）
+     * 包含节点显示文本、选择信息、深度、状态标记和颜色
      */
     @Override
     public String content() {
@@ -30,6 +30,9 @@ public class DecisionTreeNodeAdapter implements TreeNode {
             return ColorUtils.nullNode();
         }
 
+        StringBuilder sb = new StringBuilder();
+
+        // 主显示文本（路径）
         String displayText = node.getDisplayText();
         String marker = node.getStatusMarker();
 
@@ -47,7 +50,33 @@ public class DecisionTreeNodeAdapter implements TreeNode {
                 break;
         }
 
-        return coloredText + marker;
+        sb.append(coloredText);
+
+        // 添加状态标记
+        if (!marker.isEmpty()) {
+            sb.append(marker);
+        }
+
+        // 添加选择信息（如果有）
+        if (node.getChoice() != null && node.getDepth() > 0) {
+            sb.append(" ");
+            sb.append(ColorUtils.info("选:" + node.getChoice()));
+        }
+
+        // 添加深度信息（更紧凑的显示）
+        if (node.getDepth() > 0) {
+            sb.append(" ");
+            sb.append(ColorUtils.dim("(深度" + node.getDepth() + ")"));
+        }
+
+        // 添加描述信息（如果有且不是默认描述）
+        if (node.getDescription() != null && !node.getDescription().isEmpty()
+                && !node.getDescription().equals("开始")) {
+            sb.append(" ");
+            sb.append(ColorUtils.info("[" + node.getDescription() + "]"));
+        }
+
+        return sb.toString();
     }
 
     /**
