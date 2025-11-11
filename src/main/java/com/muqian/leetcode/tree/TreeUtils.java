@@ -504,7 +504,7 @@ public class TreeUtils {
 
     /**
      * 打印递归调用树（纵向展示）
-     * 使用tree-printer库实现专业的递归调用可视化
+     * 标准教科书式纵向展示，根在上方，分支向下展开
      *
      * @param root 递归调用树的根节点
      * @param title 标题
@@ -519,7 +519,7 @@ public class TreeUtils {
         System.out.println("\n" + ColorUtils.phase("╔═══════════════════════════════════════════════════════════════════"));
         System.out.println(ColorUtils.phase("║ " + title));
         System.out.println(ColorUtils.phase("╠═══════════════════════════════════════════════════════════════════"));
-        System.out.println(ColorUtils.phase("║ 递归调用树展示（从上到下：调用关系和返回路径）"));
+        System.out.println(ColorUtils.phase("║ 递归调用树展示（从上到下：根→分支→叶子）"));
         System.out.println(ColorUtils.phase("╚═══════════════════════════════════════════════════════════════════"));
         System.out.println();
 
@@ -529,10 +529,10 @@ public class TreeUtils {
         System.out.println("  " + ColorUtils.nullNode() + " = 空节点");
         System.out.println("  " + ColorUtils.highlight("→ 返回值") + " = 函数返回值");
         System.out.println("  " + ColorUtils.error("[基础情况]") + " = 递归终止条件");
-        System.out.println("  " + ColorUtils.dim("(深度N)") + " = 递归调用深度");
+        System.out.println("  " + ColorUtils.dim("深度N") + " = 递归调用深度");
         System.out.println();
 
-        // 使用自定义ASCII树渲染纵向树
+        // 使用自定义ASCII树渲染纵向树（根在上）
         System.out.println(ColorUtils.phase("【递归调用树结构】"));
         printVerticalRecursionTree(root, "", true);
 
@@ -588,7 +588,7 @@ public class TreeUtils {
     }
 
     /**
-     * 打印纵向递归调用树结构（包含详细节点信息）
+     * 打印纵向递归调用树结构（标准树形，根在上，分支向下）
      *
      * @param node 当前节点
      * @param prefix 前缀字符串
@@ -629,6 +629,12 @@ public class TreeUtils {
             sb.append(" ");
             sb.append(ColorUtils.success("→ "));
             sb.append(ColorUtils.highlight(String.valueOf(node.getReturnValue())));
+        }
+
+        // 深度信息
+        if (node.getDepth() > 0) {
+            sb.append(" ");
+            sb.append(ColorUtils.dim("(深度" + node.getDepth() + ")"));
         }
 
         // 描述信息
