@@ -532,9 +532,10 @@ public class TreeUtils {
         System.out.println("  " + ColorUtils.dim("深度N") + " = 递归调用深度");
         System.out.println();
 
-        // 使用自定义ASCII树渲染纵向树（根在上）
+        // 使用自定义ASCII树渲染纵向树（根在上，分支向下）
         System.out.println(ColorUtils.phase("【递归调用树结构】"));
-        printVerticalRecursionTree(root, "", true);
+        Map<RecursionTreeNode, RecursionNodePosition> layout = calculateRecursionTreeLayout(root);
+        renderVerticalRecursionTreeLayout(root, layout);
 
         // 打印统计信息
         int[] stats = calculateRecursionTreeStats(root);
@@ -689,5 +690,261 @@ public class TreeUtils {
             String childPrefix = prefix + indent + (level > 0 ? (isLast ? "   " : "│  ") : "");
             printCompactRecursionRecursive(children.get(i), level + 1, childPrefix);
         }
+    }
+
+    /**
+     * 递归节点位置信息（用于纵向布局）
+     */
+    private static class RecursionNodePosition {
+        int x;  // 水平位置
+        int y;  // 垂直位置（深度）
+        int subtreeWidth;  // 子树宽度
+
+        RecursionNodePosition(int x, int y, int subtreeWidth) {
+            this.x = x;
+            this.y = y;
+            this.subtreeWidth = subtreeWidth;
+        }
+    }
+
+    /**
+     * 计算递归树的布局（每个节点的位置）
+     */
+    private static Map<RecursionTreeNode, RecursionNodePosition> calculateRecursionTreeLayout(RecursionTreeNode root) {
+        Map<RecursionTreeNode, RecursionNodePosition> layout = new HashMap<>();
+        calculateRecursionSubtreeWidth(root);
+        assignRecursionPositions(root, 0, 0, layout);
+        return layout;
+    }
+
+    /**
+     * 计算递归子树宽度（后序遍历）
+     */
+    private static int calculateRecursionSubtreeWidth(RecursionTreeNode node) {
+        if (node == null) return 0;
+
+        List<RecursionTreeNode> children = node.getChildren();
+        if (children.isEmpty()) {
+            return 1;  // 叶子节点宽度为1
+        }
+
+        int totalWidth = 0;
+        for (RecursionTreeNode child : children) {
+            totalWidth += calculateRecursionSubtreeWidth(child);
+        }
+        return Math.max(1, totalWidth);
+    }
+
+    /**
+     * 分配递归节点位置
+     */
+    private static void assignRecursionPositions(RecursionTreeNode node, int depth, int leftBound,
+                                                  Map<RecursionTreeNode, RecursionNodePosition> layout) {
+        if (node == null) return;
+
+        List<RecursionTreeNode> children = node.getChildren();
+        int subtreeWidth = calculateRecursionSubtreeWidth(node);
+
+        if (children.isEmpty()) {
+            // 叶子节点：直接放在左边界
+            layout.put(node, new RecursionNodePosition(leftBound, depth, 1));
+        } else {
+            // 非叶子节点：计算子节点位置，然后放在子节点中间
+            int currentX = leftBound;
+            int minChildX = Integer.MAX_VALUE;
+            int maxChildX = Integer.MIN_VALUE;
+
+            for (RecursionTreeNode child : children) {
+                int childWidth = calculateRecursionSubtreeWidth(child);
+                assignRecursionPositions(child, depth + 1, currentX, layout);
+
+                RecursionNodePosition childPos = layout.get(child);
+                minChildX = Math.min(minChildX, childPos.x);
+                maxChildX = Math.max(maxChildX, childPos.x);
+
+                currentX += childWidth;
+            }
+
+            // 父节点位于子节点中间
+            int parentX = (minChildX + maxChildX) / 2;
+            layout.put(node, new RecursionNodePosition(parentX, depth, subtreeWidth));
+        }
+    }
+
+    /**
+     * 渲染纵向递归树形图
+     */
+    private static void renderVerticalRecursionTreeLayout(RecursionTreeNode root,
+                                                           Map<RecursionTreeNode, RecursionNodePosition> layout) {
+        // 按层收集节点
+        Map<Integer, List<RecursionTreeNode>> layers = new HashMap<>();
+        collectRecursionLayers(root, layout, layers);
+
+        int maxDepth = layers.keySet().stream().max(Integer::compareTo).orElse(0);
+
+        // 逐层渲染
+        for (int depth = 0; depth <= maxDepth; depth++) {
+            List<RecursionTreeNode> nodesAtDepth = layers.getOrDefault(depth, new ArrayList<>());
+            if (nodesAtDepth.isEmpty()) continue;
+
+            // 渲染节点层
+            renderRecursionNodeLayer(nodesAtDepth, layout);
+
+            // 渲染连接线层（除了最后一层）
+            if (depth < maxDepth) {
+                renderRecursionConnectionLayer(nodesAtDepth, layout);
+            }
+        }
+    }
+
+    /**
+     * 按层收集递归节点
+     */
+    private static void collectRecursionLayers(RecursionTreeNode node,
+                                               Map<RecursionTreeNode, RecursionNodePosition> layout,
+                                               Map<Integer, List<RecursionTreeNode>> layers) {
+        if (node == null) return;
+
+        RecursionNodePosition pos = layout.get(node);
+        layers.computeIfAbsent(pos.y, k -> new ArrayList<>()).add(node);
+
+        for (RecursionTreeNode child : node.getChildren()) {
+            collectRecursionLayers(child, layout, layers);
+        }
+    }
+
+    /**
+     * 渲染递归节点层
+     */
+    private static void renderRecursionNodeLayer(List<RecursionTreeNode> nodes,
+                                                  Map<RecursionTreeNode, RecursionNodePosition> layout) {
+        if (nodes.isEmpty()) return;
+
+        // 找到最大x坐标
+        int maxX = nodes.stream()
+                .map(layout::get)
+                .mapToInt(pos -> pos.x)
+                .max()
+                .orElse(0);
+
+        // 创建输出行
+        StringBuilder line = new StringBuilder();
+
+        // 按x坐标排序节点
+        nodes.sort((a, b) -> layout.get(a).x - layout.get(b).x);
+
+        for (RecursionTreeNode node : nodes) {
+            RecursionNodePosition pos = layout.get(node);
+            String nodeText = getRecursionNodeText(node);
+
+            // 添加空格直到节点位置
+            int targetX = pos.x * 12;  // 每个单位12个字符宽度（递归节点文本较长）
+            while (line.length() < targetX) {
+                line.append(" ");
+            }
+
+            // 添加节点文本
+            line.append(nodeText);
+        }
+
+        System.out.println(line.toString());
+    }
+
+    /**
+     * 渲染递归连接线层
+     */
+    private static void renderRecursionConnectionLayer(List<RecursionTreeNode> parentNodes,
+                                                        Map<RecursionTreeNode, RecursionNodePosition> layout) {
+        if (parentNodes.isEmpty()) return;
+
+        // 收集所有需要画连接线的父节点
+        List<RecursionTreeNode> parentsWithChildren = parentNodes.stream()
+                .filter(node -> !node.getChildren().isEmpty())
+                .collect(Collectors.toList());
+
+        if (parentsWithChildren.isEmpty()) return;
+
+        // 找到最大x坐标
+        int maxX = 0;
+        for (RecursionTreeNode parent : parentsWithChildren) {
+            for (RecursionTreeNode child : parent.getChildren()) {
+                RecursionNodePosition childPos = layout.get(child);
+                maxX = Math.max(maxX, childPos.x);
+            }
+        }
+
+        // 创建连接线
+        char[] line = new char[(maxX + 1) * 12];
+        Arrays.fill(line, ' ');
+
+        for (RecursionTreeNode parent : parentsWithChildren) {
+            List<RecursionTreeNode> children = parent.getChildren();
+            if (children.isEmpty()) continue;
+
+            RecursionNodePosition parentPos = layout.get(parent);
+            int parentX = parentPos.x * 12 + 4;  // 调整到节点中心
+
+            if (children.size() == 1) {
+                // 单个子节点：画一条直线
+                line[parentX] = '│';
+            } else {
+                // 多个子节点：画分叉
+                RecursionNodePosition firstChildPos = layout.get(children.get(0));
+                RecursionNodePosition lastChildPos = layout.get(children.get(children.size() - 1));
+
+                int leftX = firstChildPos.x * 12 + 4;
+                int rightX = lastChildPos.x * 12 + 4;
+
+                // 画横线
+                for (int x = leftX; x <= rightX; x++) {
+                    if (line[x] == ' ') {
+                        line[x] = '─';
+                    }
+                }
+
+                // 画分叉点
+                line[leftX] = '┌';
+                line[rightX] = '┐';
+                line[parentX] = '┴';
+
+                // 画子节点连接点
+                for (int i = 1; i < children.size() - 1; i++) {
+                    RecursionNodePosition childPos = layout.get(children.get(i));
+                    int childX = childPos.x * 12 + 4;
+                    line[childX] = '┬';
+                }
+            }
+        }
+
+        System.out.println(new String(line).replaceAll(" +$", ""));
+    }
+
+    /**
+     * 获取递归节点的简短文本表示
+     */
+    private static String getRecursionNodeText(RecursionTreeNode node) {
+        if (node == null) return ColorUtils.nullNode();
+
+        StringBuilder sb = new StringBuilder();
+
+        // 基础情况标记
+        if (node.getType() == RecursionTreeNode.NodeType.BASE_CASE) {
+            sb.append(ColorUtils.error("[基] "));
+        }
+
+        // 节点值
+        if (node.getTreeNode() != null) {
+            sb.append(ColorUtils.node(String.valueOf(node.getTreeNode().val)));
+        } else {
+            sb.append(ColorUtils.nullNode());
+        }
+
+        // 返回值
+        if (node.getReturnValue() != null) {
+            sb.append(ColorUtils.success("→"));
+            sb.append(ColorUtils.highlight(String.valueOf(node.getReturnValue())));
+        }
+
+        return sb.toString();
     }
 }

@@ -378,9 +378,10 @@ public class BacktrackUtils {
         System.out.println("  " + ColorUtils.dim("(深度N)") + " = 递归深度");
         System.out.println();
 
-        // 使用自定义ASCII树渲染纵向树
+        // 使用自定义ASCII树渲染纵向树（根在上，分支向下）
         System.out.println(ColorUtils.phase("【决策树结构】"));
-        printVerticalTreeStructure(root, "", true);
+        Map<DecisionTreeNode, NodePosition> layout = calculateTreeLayout(root);
+        renderVerticalTree(root, layout);
 
         // 打印统计信息
         int[] stats = calculateTreeStats(root);
