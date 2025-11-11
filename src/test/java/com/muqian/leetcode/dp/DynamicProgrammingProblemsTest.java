@@ -164,7 +164,7 @@ public class DynamicProgrammingProblemsTest {
 
         assertEquals(5, solution.maxProfit(new int[]{7, 1, 5, 3, 6, 4}));
         assertEquals(0, solution.maxProfit(new int[]{7, 6, 4, 3, 1}));
-        assertEquals(6, solution.maxProfit(new int[]{1, 2, 4, 2, 5, 7, 2, 4, 9, 0}));
+        assertEquals(8, solution.maxProfit(new int[]{1, 2, 4, 2, 5, 7, 2, 4, 9, 0}));
 
         log.info("✓ 测试通过");
     }
